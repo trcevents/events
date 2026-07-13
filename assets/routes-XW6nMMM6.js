@@ -1,1 +1,0 @@
-import{t as e}from"./index-CBsX43HF.js";var t=e;export{t as component};
