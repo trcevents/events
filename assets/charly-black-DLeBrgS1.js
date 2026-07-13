@@ -1,0 +1,1 @@
+import{t as e}from"./index-DUyg7uto.js";var t=e;export{t as component};
