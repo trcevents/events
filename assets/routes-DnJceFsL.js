@@ -1,0 +1,1 @@
+import{t as e}from"./index-MTTAt737.js";var t=e;export{t as component};

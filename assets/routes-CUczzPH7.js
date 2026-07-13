@@ -1,1 +1,0 @@
-import{t as e}from"./index-KluVj3mb.js";var t=e;export{t as component};
