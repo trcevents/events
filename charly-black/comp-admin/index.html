@@ -22,7 +22,25 @@
   .admin-actions button.primary { background: var(--gold, #d4af37); color: var(--gold-foreground, #1a1400); border: none; font-weight: 700; }
   .admin-actions button.danger { border-color: #7a1d1d; color: #ff8080; }
   .admin-actions input[type="text"] { flex: 1; min-width: 220px; background: transparent; border: 1px solid var(--border, #333); border-radius: 0.4rem; padding: 0.45rem 0.6rem; color: inherit; font: inherit; }
-  #signin-box { max-width: 360px; margin: 6rem auto; text-align: center; }
+  #signin-box { max-width: 360px; margin: 2rem auto 4rem; text-align: center; }
+  #guide { max-width: 640px; margin: 3rem auto 0; padding: 0 1.5rem; }
+  #guide h1 { font-family: 'Playfair Display', serif; font-weight: 800; font-size: 1.6rem; margin: 0.35rem 0 0; }
+  #guide .eyebrow { font-size: 0.72rem; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; color: var(--gold, #d4af37); }
+  #guide .intro { margin-top: 0.75rem; color: var(--muted-foreground, #9a9a9a); font-size: 0.9rem; line-height: 1.6; }
+  #guide ol { margin: 1.25rem 0 0; padding-left: 1.4rem; display: flex; flex-direction: column; gap: 0.85rem; }
+  #guide ol li { font-size: 0.9rem; line-height: 1.55; }
+  #guide ol li strong { display: block; font-size: 0.95rem; margin-bottom: 0.15rem; }
+  #guide .money-box {
+    margin-top: 1.5rem; padding: 1rem 1.15rem; border-radius: 0.6rem;
+    border: 1px solid rgba(212, 175, 55, 0.35); background: rgba(212, 175, 55, 0.07);
+    font-size: 0.88rem; line-height: 1.6;
+  }
+  #guide .money-box strong { color: var(--gold, #d4af37); }
+  #guide .aside {
+    margin-top: 1.25rem; padding: 0.9rem 1.1rem; border-radius: 0.6rem;
+    border: 1px solid var(--border, #333); font-size: 0.85rem; line-height: 1.6; color: var(--muted-foreground, #9a9a9a);
+  }
+  #guide hr { border: none; border-top: 1px solid var(--border, #333); margin: 2rem 0 0; }
   #signin-box input { width: 100%; padding: 0.6rem 0.75rem; border-radius: 0.4rem; border: 1px solid var(--border, #333); background: transparent; color: inherit; font: inherit; margin: 1rem 0; }
   #signin-box button { width: 100%; padding: 0.7rem; border-radius: 0.4rem; border: none; background: var(--gold, #d4af37); color: var(--gold-foreground, #1a1400); font-weight: 700; cursor: pointer; }
   .filters { display: flex; gap: 0.5rem; margin-bottom: 1.5rem; }
@@ -56,6 +74,66 @@
 </style>
 </head>
 <body class="min-h-screen">
+
+<div id="guide">
+  <p class="eyebrow">TRC Events · Charly Black — Good Times · Aug 28, 2026</p>
+  <h1>How the Comp Ticket System Works</h1>
+  <p class="intro">
+    A quick read before you sign in below — this is the whole flow, start to finish,
+    so you know what happens after you hand someone a link.
+  </p>
+
+  <ol>
+    <li>
+      <strong>1. Sign in and grab your link.</strong>
+      Once you're signed in, you'll see a box called "Your Referral Link." That link is
+      yours — it already knows your name, so whoever fills it out doesn't have to guess
+      who sent them.
+    </li>
+    <li>
+      <strong>2. Someone asks you for tickets? Send them your link.</strong>
+      They fill out their own name, email, and phone — you don't have to do it for them.
+    </li>
+    <li>
+      <strong>3. They choose free, sell, or both.</strong>
+      Up to 2 free tickets to keep, and up to 10 tickets to sell to start (they can always
+      ask for more once they're moving them). The form shows them what selling is worth —
+      see below.
+    </li>
+    <li>
+      <strong>4. You and Stephen both get an email the moment they submit.</strong>
+      Nothing to do here — it's automatic. That's your heads-up that a request is waiting.
+    </li>
+    <li>
+      <strong>5. Stephen reviews it and sets up their access in Ticket Tailor.</strong>
+      He builds their allocation and sends them a code by email — that's what lets them
+      actually claim free tickets or sell.
+    </li>
+    <li>
+      <strong>6. They're live.</strong>
+      Free tickets are theirs to give away. Sold tickets earn them real money — and you
+      helped make that happen.
+    </li>
+  </ol>
+
+  <div class="money-box">
+    <strong>Why selling is worth it to them:</strong> they keep <strong>70%</strong> of every
+    ticket for their first 10 sold, and <strong>50%</strong> on every ticket after that, up to
+    50 total. Worth mentioning when you hand out the link — it's real money, not just a favor.
+  </div>
+
+  <div class="aside">
+    <strong style="color:inherit;">Someone asks you in person instead of online?</strong>
+    No problem. Once you're signed in, click <strong>"+ Log a Request"</strong> and fill it in
+    yourself on their behalf — same process, same review, from there.
+    <br /><br />
+    <strong style="color:inherit;">Keep your login to yourself.</strong> Your email and password
+    are personal — please don't forward or share them. Lost your password or need help?
+    Text or call 414-909-3279.
+  </div>
+
+  <hr />
+</div>
 
 <div id="signin-box">
   <h1 class="font-display text-xl font-bold">Comp Admin Sign-in</h1>
@@ -521,9 +599,12 @@
     window.location.reload();
   });
 
+  var guideEl = document.getElementById("guide");
+
   async function handleSession(session) {
     if (!session || !session.user || !session.user.email) {
       signinBox.style.display = "block";
+      guideEl.style.display = "block";
       adminApp.style.display = "none";
       notAuthorizedBox.style.display = "none";
       return;
@@ -531,6 +612,7 @@
 
     currentUserEmail = session.user.email;
     signinBox.style.display = "none";
+    guideEl.style.display = "none";
 
     var { data: isAdmin, error } = await client.rpc("is_comp_admin");
 
