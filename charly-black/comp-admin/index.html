@@ -43,6 +43,13 @@
   <p id="signin-msg" class="mt-3 text-sm"></p>
 </div>
 
+<div id="not-authorized" style="display:none; max-width:420px; margin:6rem auto; text-align:center;">
+  <h1 class="font-display text-xl font-bold">Not Authorized</h1>
+  <p class="muted mt-2 text-sm">You're signed in as <strong id="not-authorized-email"></strong>, but that email isn't on the approved reviewer list for Charly Black comp requests.</p>
+  <p class="muted mt-2 text-sm">Ask Stephen to add you, or sign in with a different email.</p>
+  <button id="not-authorized-signout-btn" class="admin-actions button" style="margin-top:1.5rem;">Sign out</button>
+</div>
+
 <div id="admin-app" class="admin-wrap" style="display:none">
   <div id="topbar">
     <div>
@@ -221,28 +228,45 @@
     });
   }
 
-  client.auth.onAuthStateChange(function (event, session) {
-    if (session && session.user && session.user.email) {
-      currentUserEmail = session.user.email;
-      signinBox.style.display = "none";
-      adminApp.style.display = "block";
-      document.getElementById("signed-in-as").textContent = "Signed in as " + currentUserEmail;
-      loadRequests();
-    } else {
+  var notAuthorizedBox = document.getElementById("not-authorized");
+
+  document.getElementById("not-authorized-signout-btn").addEventListener("click", async function () {
+    await client.auth.signOut();
+    window.location.reload();
+  });
+
+  async function handleSession(session) {
+    if (!session || !session.user || !session.user.email) {
       signinBox.style.display = "block";
       adminApp.style.display = "none";
+      notAuthorizedBox.style.display = "none";
+      return;
     }
+
+    currentUserEmail = session.user.email;
+    signinBox.style.display = "none";
+
+    var { data: isAdmin, error } = await client.rpc("is_comp_admin");
+
+    if (error || !isAdmin) {
+      adminApp.style.display = "none";
+      notAuthorizedBox.style.display = "block";
+      document.getElementById("not-authorized-email").textContent = currentUserEmail;
+      return;
+    }
+
+    notAuthorizedBox.style.display = "none";
+    adminApp.style.display = "block";
+    document.getElementById("signed-in-as").textContent = "Signed in as " + currentUserEmail;
+    loadRequests();
+  }
+
+  client.auth.onAuthStateChange(function (event, session) {
+    handleSession(session);
   });
 
   client.auth.getSession().then(function (res) {
-    var session = res.data.session;
-    if (session && session.user && session.user.email) {
-      currentUserEmail = session.user.email;
-      signinBox.style.display = "none";
-      adminApp.style.display = "block";
-      document.getElementById("signed-in-as").textContent = "Signed in as " + currentUserEmail;
-      loadRequests();
-    }
+    handleSession(res.data.session);
   });
 })();
 </script>
