@@ -37,9 +37,10 @@
 
 <div id="signin-box">
   <h1 class="font-display text-xl font-bold">Comp Admin Sign-in</h1>
-  <p class="muted mt-2 text-sm">Enter your email to get a one-time sign-in link. Only approved TRC reviewers can view requests once signed in.</p>
+  <p class="muted mt-2 text-sm">Sign in with the email and password Stephen gave you.</p>
   <input type="email" id="signin-email" placeholder="you@example.com" autocomplete="email" />
-  <button id="signin-btn">Send Magic Link</button>
+  <input type="password" id="signin-password" placeholder="Password" autocomplete="current-password" />
+  <button id="signin-btn">Sign In</button>
   <p id="signin-msg" class="mt-3 text-sm"></p>
 </div>
 
@@ -85,28 +86,28 @@
   document.getElementById("signin-btn").addEventListener("click", async function () {
     var btn = this;
     var email = document.getElementById("signin-email").value.trim();
+    var password = document.getElementById("signin-password").value;
     var msg = document.getElementById("signin-msg");
 
-    if (!email) {
-      msg.textContent = "Enter your email first.";
+    if (!email || !password) {
+      msg.textContent = "Enter both your email and password.";
       return;
     }
 
     btn.disabled = true;
     var originalLabel = btn.textContent;
-    btn.textContent = "Sending…";
+    btn.textContent = "Signing in…";
     msg.textContent = "";
 
     try {
-      var { error } = await client.auth.signInWithOtp({
-        email: email,
-        options: { emailRedirectTo: window.location.href },
-      });
-      msg.textContent = error
-        ? "Error: " + error.message
-        : "Check your email for the sign-in link.";
+      var { error } = await client.auth.signInWithPassword({ email: email, password: password });
+      if (error) {
+        msg.textContent = "Error: " + error.message;
+      }
+      // On success, onAuthStateChange takes over and swaps the view --
+      // nothing else to do here.
     } catch (e) {
-      msg.textContent = "Something went wrong sending the link: " + (e && e.message ? e.message : e);
+      msg.textContent = "Something went wrong signing in: " + (e && e.message ? e.message : e);
     } finally {
       btn.disabled = false;
       btn.textContent = originalLabel;
