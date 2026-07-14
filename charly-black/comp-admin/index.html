@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Comp Request Admin — Charly Black | TRC Events</title>
+<meta name="robots" content="noindex, nofollow" />
+<link rel="stylesheet" href="/assets/styles-yU2aC7mf.css" />
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;600;700;800;900&family=Jost:wght@400;500;600;700&display=swap" />
+<style>
+  .admin-wrap { max-width: 900px; margin: 0 auto; padding: 3rem 1.5rem; }
+  .admin-card { border: 1px solid var(--border, #333); border-radius: 0.75rem; background: var(--card, #111); padding: 1.25rem; margin-bottom: 1rem; }
+  .admin-card h3 { font-weight: 700; }
+  .admin-row { display: flex; flex-wrap: wrap; gap: 0.5rem 1.5rem; font-size: 0.85rem; margin-top: 0.5rem; }
+  .admin-row span.label { color: var(--muted-foreground, #9a9a9a); margin-right: 0.25rem; }
+  .badge { display: inline-block; padding: 0.15rem 0.6rem; border-radius: 999px; font-size: 0.7rem; font-weight: 700; text-transform: uppercase; }
+  .badge.pending { background: #7a5f00; color: #fff; }
+  .badge.approved { background: #1d7a3d; color: #fff; }
+  .badge.rejected { background: #7a1d1d; color: #fff; }
+  .admin-actions { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 1rem; }
+  .admin-actions button { padding: 0.45rem 0.9rem; border-radius: 0.4rem; border: 1px solid var(--border, #333); background: transparent; color: inherit; cursor: pointer; font-size: 0.8rem; }
+  .admin-actions button.primary { background: var(--gold, #d4af37); color: var(--gold-foreground, #1a1400); border: none; font-weight: 700; }
+  .admin-actions button.danger { border-color: #7a1d1d; color: #ff8080; }
+  .admin-actions input[type="text"] { flex: 1; min-width: 220px; background: transparent; border: 1px solid var(--border, #333); border-radius: 0.4rem; padding: 0.45rem 0.6rem; color: inherit; font: inherit; }
+  #signin-box { max-width: 360px; margin: 6rem auto; text-align: center; }
+  #signin-box input { width: 100%; padding: 0.6rem 0.75rem; border-radius: 0.4rem; border: 1px solid var(--border, #333); background: transparent; color: inherit; font: inherit; margin: 1rem 0; }
+  #signin-box button { width: 100%; padding: 0.7rem; border-radius: 0.4rem; border: none; background: var(--gold, #d4af37); color: var(--gold-foreground, #1a1400); font-weight: 700; cursor: pointer; }
+  .filters { display: flex; gap: 0.5rem; margin-bottom: 1.5rem; }
+  .filters button { padding: 0.4rem 0.9rem; border-radius: 999px; border: 1px solid var(--border, #333); background: transparent; color: inherit; cursor: pointer; font-size: 0.8rem; }
+  .filters button.active { background: var(--gold, #d4af37); color: var(--gold-foreground, #1a1400); border: none; }
+  #topbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; }
+  .muted { color: var(--muted-foreground, #9a9a9a); }
+  #msg { font-size: 0.85rem; margin-top: 0.75rem; }
+</style>
+</head>
+<body class="min-h-screen">
+
+<div id="signin-box">
+  <h1 class="font-display text-xl font-bold">Comp Admin Sign-in</h1>
+  <p class="muted mt-2 text-sm">Magic link sign-in, restricted to stephen@selassiefest.com.</p>
+  <input type="email" id="signin-email" placeholder="stephen@selassiefest.com" />
+  <button id="signin-btn">Send Magic Link</button>
+  <p id="signin-msg" class="mt-3 text-sm"></p>
+</div>
+
+<div id="admin-app" class="admin-wrap" style="display:none">
+  <div id="topbar">
+    <div>
+      <h1 class="font-display text-2xl font-bold">Charly Black — Comp Requests</h1>
+      <p class="muted text-sm mt-1" id="signed-in-as"></p>
+    </div>
+    <button id="signout-btn" class="admin-actions button">Sign out</button>
+  </div>
+
+  <div class="filters">
+    <button data-filter="pending" class="active">Pending</button>
+    <button data-filter="approved">Approved</button>
+    <button data-filter="rejected">Rejected</button>
+    <button data-filter="all">All</button>
+  </div>
+
+  <div id="list"></div>
+</div>
+
+<script src="https://unpkg.com/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script src="/assets/supabase-config.js"></script>
+<script>
+(function () {
+  var cfg = window.TRC_SUPABASE_CONFIG;
+  var client = window.supabase.createClient(cfg.url, cfg.anonKey);
+
+  var signinBox = document.getElementById("signin-box");
+  var adminApp = document.getElementById("admin-app");
+  var listEl = document.getElementById("list");
+  var currentFilter = "pending";
+  var currentUserEmail = null;
+
+  document.getElementById("signin-btn").addEventListener("click", async function () {
+    var email = document.getElementById("signin-email").value.trim();
+    var msg = document.getElementById("signin-msg");
+    if (!email) return;
+    var { error } = await client.auth.signInWithOtp({
+      email: email,
+      options: { emailRedirectTo: window.location.href },
+    });
+    msg.textContent = error ? "Error: " + error.message : "Check your email for the sign-in link.";
+  });
+
+  document.getElementById("signout-btn").addEventListener("click", async function () {
+    await client.auth.signOut();
+    window.location.reload();
+  });
+
+  document.querySelectorAll(".filters button").forEach(function (btn) {
+    btn.addEventListener("click", function () {
+      document.querySelectorAll(".filters button").forEach(function (b) { b.classList.remove("active"); });
+      btn.classList.add("active");
+      currentFilter = btn.dataset.filter;
+      loadRequests();
+    });
+  });
+
+  async function loadRequests() {
+    var query = client.from("comp_requests").select("*").order("created_at", { ascending: false });
+    if (currentFilter !== "all") query = query.eq("status", currentFilter);
+    var { data, error } = await query;
+    listEl.innerHTML = "";
+    if (error) {
+      listEl.innerHTML = "<p class='muted'>Error loading requests: " + error.message + "</p>";
+      return;
+    }
+    if (!data.length) {
+      listEl.innerHTML = "<p class='muted'>No requests here.</p>";
+      return;
+    }
+    data.forEach(renderCard);
+  }
+
+  function renderCard(r) {
+    var card = document.createElement("div");
+    card.className = "admin-card";
+    var approverLine = r.approver_listed ? r.approver_name : (r.approver_name + " (typed in — verify)");
+    card.innerHTML =
+      "<div style='display:flex;justify-content:space-between;align-items:start'>" +
+        "<h3>" + escapeHtml(r.full_name) + (r.crew_or_org ? " — " + escapeHtml(r.crew_or_org) : "") + "</h3>" +
+        "<span class='badge " + r.status + "'>" + r.status + "</span>" +
+      "</div>" +
+      "<div class='admin-row'>" +
+        "<div><span class='label'>Email:</span>" + escapeHtml(r.email) + "</div>" +
+        "<div><span class='label'>Phone:</span>" + escapeHtml(r.phone || "—") + "</div>" +
+        "<div><span class='label'>Tickets:</span>" + r.tickets_requested + "</div>" +
+        "<div><span class='label'>Told by:</span>" + escapeHtml(approverLine) + "</div>" +
+      "</div>" +
+      (r.notes ? "<div class='admin-row'><span class='label'>Notes:</span>" + escapeHtml(r.notes) + "</div>" : "") +
+      "<div class='admin-row muted'>Submitted " + new Date(r.created_at).toLocaleString() + "</div>" +
+      (r.access_sent_at ? "<div class='admin-row muted'>Access info sent " + new Date(r.access_sent_at).toLocaleString() + "</div>" : "");
+
+    var actions = document.createElement("div");
+    actions.className = "admin-actions";
+
+    if (r.status === "pending") {
+      actions.appendChild(makeButton("Approve", "primary", function () { setStatus(r.id, "approved"); }));
+      actions.appendChild(makeButton("Reject", "danger", function () { setStatus(r.id, "rejected"); }));
+    }
+
+    if (r.status === "approved") {
+      var codeInput = document.createElement("input");
+      codeInput.type = "text";
+      codeInput.placeholder = "Paste Ticket Tailor access code/link here";
+      codeInput.value = r.tt_access_info || "";
+      actions.appendChild(codeInput);
+
+      actions.appendChild(makeButton("Save Code", "", async function () {
+        await client.from("comp_requests").update({ tt_access_info: codeInput.value.trim() }).eq("id", r.id);
+        loadRequests();
+      }));
+
+      actions.appendChild(makeButton(r.access_sent_at ? "Resend Access Info" : "Send Access Info", "primary", async function () {
+        if (!codeInput.value.trim()) {
+          alert("Save a Ticket Tailor code/link first.");
+          return;
+        }
+        await client.from("comp_requests").update({ tt_access_info: codeInput.value.trim() }).eq("id", r.id);
+        var { error } = await client.functions.invoke("send-access-info", { body: { id: r.id } });
+        if (error) {
+          alert("Failed to send: " + error.message);
+        } else {
+          loadRequests();
+        }
+      }));
+    }
+
+    if (r.status !== "pending") {
+      actions.appendChild(makeButton("Reopen as Pending", "", function () { setStatus(r.id, "pending"); }));
+    }
+
+    card.appendChild(actions);
+    listEl.appendChild(card);
+  }
+
+  function makeButton(label, cls, onClick) {
+    var b = document.createElement("button");
+    b.textContent = label;
+    if (cls) b.className = cls;
+    b.addEventListener("click", onClick);
+    return b;
+  }
+
+  async function setStatus(id, status) {
+    await client.from("comp_requests").update({
+      status: status,
+      reviewed_by: currentUserEmail,
+      reviewed_at: new Date().toISOString(),
+    }).eq("id", id);
+    loadRequests();
+  }
+
+  function escapeHtml(s) {
+    return String(s).replace(/[&<>"']/g, function (c) {
+      return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
+    });
+  }
+
+  client.auth.onAuthStateChange(function (event, session) {
+    if (session && session.user && session.user.email) {
+      currentUserEmail = session.user.email;
+      signinBox.style.display = "none";
+      adminApp.style.display = "block";
+      document.getElementById("signed-in-as").textContent = "Signed in as " + currentUserEmail;
+      loadRequests();
+    } else {
+      signinBox.style.display = "block";
+      adminApp.style.display = "none";
+    }
+  });
+
+  client.auth.getSession().then(function (res) {
+    var session = res.data.session;
+    if (session && session.user && session.user.email) {
+      currentUserEmail = session.user.email;
+      signinBox.style.display = "none";
+      adminApp.style.display = "block";
+      document.getElementById("signed-in-as").textContent = "Signed in as " + currentUserEmail;
+      loadRequests();
+    }
+  });
+})();
+</script>
+</body>
+</html>

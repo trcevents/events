@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Comp / Sellable Ticket Request — Charly Black | TRC Events</title>
+<meta name="robots" content="noindex, nofollow" />
+<link rel="stylesheet" href="/assets/styles-yU2aC7mf.css" />
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;600;700;800;900&family=Jost:wght@400;500;600;700&display=swap" />
+<style>
+  .comp-field { display: flex; flex-direction: column; gap: 0.4rem; margin-bottom: 1.25rem; text-align: left; }
+  .comp-field label { font-size: 0.85rem; font-weight: 600; }
+  .comp-field .hint { font-size: 0.75rem; color: var(--muted-foreground, #9a9a9a); }
+  .comp-field input, .comp-field select, .comp-field textarea {
+    background: transparent;
+    border: 1px solid var(--border, #333);
+    border-radius: 0.5rem;
+    padding: 0.6rem 0.75rem;
+    font: inherit;
+    color: inherit;
+  }
+  .comp-field textarea { min-height: 5rem; resize: vertical; }
+  .comp-submit {
+    width: 100%;
+    margin-top: 0.5rem;
+    padding: 0.85rem;
+    border-radius: 0.5rem;
+    border: none;
+    font-weight: 700;
+    cursor: pointer;
+    background: var(--gold, #d4af37);
+    color: var(--gold-foreground, #1a1400);
+  }
+  .comp-submit:disabled { opacity: 0.5; cursor: not-allowed; }
+  #comp-status { margin-top: 1rem; font-size: 0.9rem; }
+  #comp-status.error { color: #ef4444; }
+  #comp-status.success { color: #22c55e; }
+  #other-approver-wrap { display: none; }
+</style>
+</head>
+<body class="min-h-screen">
+<div class="mx-auto max-w-lg px-4 py-12 sm:px-6">
+  <a href="/charly-black" class="flex items-center gap-2.5 mb-8">
+    <img src="/assets/logo-CKF2Corw.png" alt="TRC Events" width="36" height="36" class="size-9 object-contain" />
+    <span class="font-display text-lg font-bold tracking-wide">TRC <span class="text-gold">Events</span></span>
+  </a>
+
+  <h1 class="font-display text-2xl font-bold sm:text-3xl">Comp / Sellable Ticket Request</h1>
+  <p class="mt-2 text-sm text-muted-foreground">
+    Charly Black — Good Times · Friday, Aug 28, 2026 · Bombay Banquet Hall
+  </p>
+  <p class="mt-4 text-sm text-muted-foreground">
+    If someone on the TRC team told you that you can get tickets — to keep for yourself
+    or sell — fill this out. We'll review it and email you your access details.
+  </p>
+
+  <form id="comp-form" class="mt-8 rounded-xl border border-border bg-card p-6">
+    <div class="comp-field">
+      <label for="full_name">Your full name *</label>
+      <input type="text" id="full_name" name="full_name" required />
+    </div>
+
+    <div class="comp-field">
+      <label for="crew_or_org">Crew / organization (if any)</label>
+      <input type="text" id="crew_or_org" name="crew_or_org" />
+    </div>
+
+    <div class="comp-field">
+      <label for="email">Email *</label>
+      <input type="email" id="email" name="email" required />
+      <span class="hint">We'll send your access details here.</span>
+    </div>
+
+    <div class="comp-field">
+      <label for="phone">Phone</label>
+      <input type="tel" id="phone" name="phone" />
+    </div>
+
+    <div class="comp-field">
+      <label for="tickets_requested">How many tickets? *</label>
+      <input type="number" id="tickets_requested" name="tickets_requested" min="1" step="1" required />
+    </div>
+
+    <div class="comp-field">
+      <label for="approver_select">Who told you that you could get these? *</label>
+      <select id="approver_select" name="approver_select" required>
+        <option value="" disabled selected>Choose a name…</option>
+        <option value="__other__">Someone else not listed</option>
+      </select>
+    </div>
+
+    <div class="comp-field" id="other-approver-wrap">
+      <label for="other_approver_name">Their name *</label>
+      <input type="text" id="other_approver_name" name="other_approver_name" />
+    </div>
+
+    <div class="comp-field">
+      <label for="notes">Anything else we should know?</label>
+      <textarea id="notes" name="notes"></textarea>
+    </div>
+
+    <button type="submit" id="comp-submit-btn" class="comp-submit">Submit Request</button>
+    <div id="comp-status"></div>
+  </form>
+</div>
+
+<script src="https://unpkg.com/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script src="/assets/supabase-config.js"></script>
+<script>
+(function () {
+  var cfg = window.TRC_SUPABASE_CONFIG;
+  var client = window.supabase.createClient(cfg.url, cfg.anonKey);
+
+  var approverSelect = document.getElementById("approver_select");
+  var otherWrap = document.getElementById("other-approver-wrap");
+  var otherInput = document.getElementById("other_approver_name");
+
+  async function loadApprovers() {
+    var { data, error } = await client
+      .from("approvers")
+      .select("name")
+      .eq("active", true)
+      .order("name");
+    if (error || !data) return;
+    data.forEach(function (a) {
+      var opt = document.createElement("option");
+      opt.value = a.name;
+      opt.textContent = a.name;
+      approverSelect.insertBefore(opt, approverSelect.lastElementChild);
+    });
+  }
+  loadApprovers();
+
+  approverSelect.addEventListener("change", function () {
+    var isOther = approverSelect.value === "__other__";
+    otherWrap.style.display = isOther ? "flex" : "none";
+    otherInput.required = isOther;
+  });
+
+  var form = document.getElementById("comp-form");
+  var statusEl = document.getElementById("comp-status");
+  var submitBtn = document.getElementById("comp-submit-btn");
+
+  form.addEventListener("submit", async function (e) {
+    e.preventDefault();
+    statusEl.textContent = "";
+    statusEl.className = "";
+    submitBtn.disabled = true;
+
+    var isOther = approverSelect.value === "__other__";
+    var approverName = isOther ? otherInput.value.trim() : approverSelect.value;
+
+    if (!approverName) {
+      statusEl.textContent = "Please tell us who gave you access to this form.";
+      statusEl.className = "error";
+      submitBtn.disabled = false;
+      return;
+    }
+
+    var payload = {
+      full_name: document.getElementById("full_name").value.trim(),
+      crew_or_org: document.getElementById("crew_or_org").value.trim() || null,
+      email: document.getElementById("email").value.trim(),
+      phone: document.getElementById("phone").value.trim() || null,
+      tickets_requested: parseInt(document.getElementById("tickets_requested").value, 10),
+      approver_name: approverName,
+      approver_listed: !isOther,
+      notes: document.getElementById("notes").value.trim() || null,
+    };
+
+    var { error } = await client.from("comp_requests").insert(payload);
+
+    if (error) {
+      statusEl.textContent = "Something went wrong submitting your request. Please try again or call/text 414-909-3279.";
+      statusEl.className = "error";
+      submitBtn.disabled = false;
+      return;
+    }
+
+    form.reset();
+    otherWrap.style.display = "none";
+    form.style.display = "none";
+    var successMsg = document.createElement("p");
+    successMsg.className = "mt-8 text-sm";
+    successMsg.textContent = "Thanks! We've got your request and will email you at the address you provided once it's reviewed.";
+    form.parentElement.appendChild(successMsg);
+  });
+})();
+</script>
+</body>
+</html>
