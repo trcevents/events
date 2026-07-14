@@ -10,7 +10,7 @@ create table if not exists comp_admins (
 
 insert into comp_admins (email, name) values
   ('stephen@selassiefest.com', 'Stephen'),
-  ('chicagotacticalmedic@icloud.com', 'Field Marshal'),
+  ('chicagotacticalmedic@icloud.com', 'Field Marshall'),
   ('douglas.allen@afccchicago.com', 'Dougie'),
   ('prestigesoundkirk@gmail.com', 'Kirk'),
   ('marlontrc@gmail.com', 'Marlon'),
