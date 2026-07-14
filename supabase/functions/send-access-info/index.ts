@@ -51,6 +51,11 @@ Deno.serve(async (req) => {
     );
   }
 
+  const sellLine = row.wants_to_sell && row.sell_tickets_requested > 0
+    ? `<p>Remember: you keep <strong>70%</strong> of every ticket you sell, for your first 10 sold. Sell more than
+         that — up to 50 total — and you still keep <strong>50%</strong> on each one after that.</p>`
+    : "";
+
   const html = `
     <p>Hi ${row.full_name},</p>
     <p>You're confirmed for <strong>${row.tickets_requested} ticket${row.tickets_requested === 1 ? "" : "s"}</strong>
@@ -58,6 +63,7 @@ Deno.serve(async (req) => {
     <p>Each ticket in your allocation is yours to use either as a <strong>free comp</strong> for yourself/your
        guests, or to <strong>sell</strong> — however you split it is up to you, up to your total of
        ${row.tickets_requested}.</p>
+    ${sellLine}
     <p><strong>Your access link/code:</strong><br/>${row.tt_access_info}</p>
     <p>Questions? Call or text 414-909-3279.</p>
   `;

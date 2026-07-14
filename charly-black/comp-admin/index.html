@@ -38,6 +38,21 @@
     padding: 0.55rem 0.7rem; color: inherit; font: inherit;
   }
   .nr-field textarea { min-height: 4rem; resize: vertical; }
+  .toggle-group { display: flex; gap: 0.5rem; }
+  .toggle-btn {
+    flex: 1; padding: 0.55rem; border-radius: 0.5rem; border: 1px solid var(--border, #333);
+    background: transparent; color: inherit; cursor: pointer; font: inherit; font-weight: 600;
+  }
+  .toggle-btn.active { background: var(--gold, #d4af37); color: var(--gold-foreground, #1a1400); border-color: transparent; }
+  .pitch-box {
+    margin-top: 0.75rem; padding: 0.8rem 0.9rem; border-radius: 0.5rem;
+    border: 1px solid rgba(212, 175, 55, 0.35); background: rgba(212, 175, 55, 0.07);
+    font-size: 0.82rem; line-height: 1.5;
+  }
+  .pitch-box strong { color: var(--gold, #d4af37); }
+  .checkbox-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.4rem 1rem; }
+  .checkbox-row { display: flex; align-items: center; gap: 0.5rem; font-size: 0.85rem; font-weight: 400; }
+  .checkbox-row input { width: auto; }
 </style>
 </head>
 <body class="min-h-screen">
@@ -98,9 +113,33 @@
         <input type="tel" id="nr_phone" />
       </div>
       <div class="nr-field">
-        <label for="nr_tickets">How many tickets? *</label>
-        <input type="number" id="nr_tickets" min="1" step="1" required />
+        <label>Do they want free tickets? *</label>
+        <div class="toggle-group" id="nr_free_toggle">
+          <button type="button" data-value="no" class="toggle-btn active">No</button>
+          <button type="button" data-value="yes" class="toggle-btn">Yes</button>
+        </div>
       </div>
+      <div class="nr-field" id="nr_free_amount_wrap" style="display:none;">
+        <label for="nr_free_tickets">How many free tickets? (up to 2) *</label>
+        <input type="number" id="nr_free_tickets" min="1" max="2" step="1" />
+      </div>
+
+      <div class="nr-field">
+        <label>Are they selling tickets? *</label>
+        <div class="toggle-group" id="nr_sell_toggle">
+          <button type="button" data-value="no" class="toggle-btn active">No</button>
+          <button type="button" data-value="yes" class="toggle-btn">Yes</button>
+        </div>
+      </div>
+      <div class="nr-field" id="nr_sell_amount_wrap" style="display:none;">
+        <label for="nr_sell_tickets">How many do they want to sell? (up to 10 to start) *</label>
+        <input type="number" id="nr_sell_tickets" min="1" max="10" step="1" />
+        <div class="pitch-box">
+          Remind them: 70% on their first 10 sold, 50% on each one after that up to 50 total.
+          At $<span id="nr_pitch_price"></span>/ticket that's up to <strong id="nr_pitch_max">$0</strong> if they sell all 50.
+        </div>
+      </div>
+
       <div class="nr-field">
         <label for="nr_approver">Who approved this (you, or whoever they actually asked)? *</label>
         <select id="nr_approver" required>
@@ -111,6 +150,19 @@
       <div class="nr-field" id="nr-other-approver-wrap" style="display:none;">
         <label for="nr_other_approver">Their name *</label>
         <input type="text" id="nr_other_approver" />
+      </div>
+      <div class="nr-field">
+        <label>Where will they post the ticket link? (optional)</label>
+        <div class="checkbox-grid" id="nr_social_grid">
+          <label class="checkbox-row"><input type="checkbox" value="Instagram" /> Instagram</label>
+          <label class="checkbox-row"><input type="checkbox" value="Facebook" /> Facebook</label>
+          <label class="checkbox-row"><input type="checkbox" value="TikTok" /> TikTok</label>
+          <label class="checkbox-row"><input type="checkbox" value="X / Twitter" /> X / Twitter</label>
+          <label class="checkbox-row"><input type="checkbox" value="Snapchat" /> Snapchat</label>
+          <label class="checkbox-row"><input type="checkbox" value="WhatsApp Status" /> WhatsApp Status</label>
+          <label class="checkbox-row"><input type="checkbox" value="YouTube" /> YouTube</label>
+        </div>
+        <input type="text" id="nr_social_other" placeholder="Other (write in)" style="margin-top:0.5rem;" />
       </div>
       <div class="nr-field">
         <label for="nr_notes">Notes</label>
@@ -208,6 +260,40 @@
     nrOtherInput.required = isOther;
   });
 
+  // Update this when the live ticket tier changes (Early Bird -> Regular -> Door).
+  var NR_TICKET_PRICE = 20;
+
+  function nrPayoutFor(n) {
+    var tier1 = Math.min(n, 10);
+    var tier2 = Math.max(Math.min(n, 50) - 10, 0);
+    return tier1 * NR_TICKET_PRICE * 0.7 + tier2 * NR_TICKET_PRICE * 0.5;
+  }
+  document.getElementById("nr_pitch_price").textContent = NR_TICKET_PRICE;
+  document.getElementById("nr_pitch_max").textContent = "$" + nrPayoutFor(50).toFixed(0);
+
+  function wireNrToggle(groupId, amountWrapId, amountInputId) {
+    var group = document.getElementById(groupId);
+    var amountWrap = document.getElementById(amountWrapId);
+    var amountInput = document.getElementById(amountInputId);
+    group.querySelectorAll(".toggle-btn").forEach(function (btn) {
+      btn.addEventListener("click", function () {
+        group.querySelectorAll(".toggle-btn").forEach(function (b) { b.classList.remove("active"); });
+        btn.classList.add("active");
+        var isYes = btn.dataset.value === "yes";
+        amountWrap.style.display = isYes ? "flex" : "none";
+        amountInput.required = isYes;
+        if (!isYes) amountInput.value = "";
+      });
+    });
+  }
+  wireNrToggle("nr_free_toggle", "nr_free_amount_wrap", "nr_free_tickets");
+  wireNrToggle("nr_sell_toggle", "nr_sell_amount_wrap", "nr_sell_tickets");
+
+  function getNrToggleValue(groupId) {
+    var active = document.querySelector("#" + groupId + " .toggle-btn.active");
+    return active ? active.dataset.value : "no";
+  }
+
   document.getElementById("new-request-toggle").addEventListener("click", function () {
     var showing = nrForm.style.display !== "none";
     if (showing) {
@@ -218,9 +304,19 @@
     }
   });
 
+  function resetNrToggles() {
+    [["nr_free_toggle", "nr_free_amount_wrap"], ["nr_sell_toggle", "nr_sell_amount_wrap"]].forEach(function (pair) {
+      document.querySelectorAll("#" + pair[0] + " .toggle-btn").forEach(function (b) {
+        b.classList.toggle("active", b.dataset.value === "no");
+      });
+      document.getElementById(pair[1]).style.display = "none";
+    });
+  }
+
   document.getElementById("new-request-cancel").addEventListener("click", function () {
     nrForm.reset();
     nrOtherWrap.style.display = "none";
+    resetNrToggles();
     nrForm.style.display = "none";
     document.getElementById("new-request-msg").textContent = "";
   });
@@ -238,16 +334,43 @@
       return;
     }
 
+    var wantsFree = getNrToggleValue("nr_free_toggle") === "yes";
+    var wantsSell = getNrToggleValue("nr_sell_toggle") === "yes";
+    var freeCount = wantsFree ? parseInt(document.getElementById("nr_free_tickets").value, 10) || 0 : 0;
+    var sellCount = wantsSell ? parseInt(document.getElementById("nr_sell_tickets").value, 10) || 0 : 0;
+
+    if (!wantsFree && !wantsSell) {
+      msg.textContent = "Choose free tickets, sell tickets, or both.";
+      return;
+    }
+    if (wantsFree && freeCount < 1) {
+      msg.textContent = "Enter how many free tickets (up to 2).";
+      return;
+    }
+    if (wantsSell && sellCount < 1) {
+      msg.textContent = "Enter how many tickets to sell (up to 10).";
+      return;
+    }
+
     submitBtn.disabled = true;
     var originalLabel = submitBtn.textContent;
     submitBtn.textContent = "Submitting…";
+
+    var nrPlatforms = Array.prototype.slice.call(document.querySelectorAll("#nr_social_grid input:checked")).map(function (c) { return c.value; });
+    var nrOtherSocial = document.getElementById("nr_social_other").value.trim();
+    var nrSocialMedia = (nrPlatforms.length || nrOtherSocial) ? { platforms: nrPlatforms, other: nrOtherSocial || null } : null;
 
     var payload = {
       full_name: document.getElementById("nr_full_name").value.trim(),
       crew_or_org: document.getElementById("nr_crew_or_org").value.trim() || null,
       email: document.getElementById("nr_email").value.trim(),
       phone: document.getElementById("nr_phone").value.trim() || null,
-      tickets_requested: parseInt(document.getElementById("nr_tickets").value, 10),
+      tickets_requested: freeCount + sellCount,
+      wants_free: wantsFree,
+      free_tickets_requested: freeCount,
+      wants_to_sell: wantsSell,
+      sell_tickets_requested: sellCount,
+      social_media: nrSocialMedia,
       approver_name: approverName,
       approver_listed: !isOther,
       notes: document.getElementById("nr_notes").value.trim() || null,
@@ -265,6 +388,7 @@
 
     nrForm.reset();
     nrOtherWrap.style.display = "none";
+    resetNrToggles();
     nrForm.style.display = "none";
 
     currentFilter = "pending";
@@ -311,9 +435,15 @@
       "<div class='admin-row'>" +
         "<div><span class='label'>Email:</span>" + escapeHtml(r.email) + "</div>" +
         "<div><span class='label'>Phone:</span>" + escapeHtml(r.phone || "—") + "</div>" +
-        "<div><span class='label'>Tickets:</span>" + r.tickets_requested + "</div>" +
+        "<div><span class='label'>Total:</span>" + r.tickets_requested + "</div>" +
         "<div><span class='label'>Told by:</span>" + escapeHtml(approverLine) + "</div>" +
       "</div>" +
+      "<div class='admin-row'>" +
+        "<div><span class='label'>Free:</span>" + (r.wants_free ? r.free_tickets_requested : "—") + "</div>" +
+        "<div><span class='label'>Selling:</span>" + (r.wants_to_sell ? r.sell_tickets_requested : "—") + "</div>" +
+      "</div>" +
+      (r.social_media && (r.social_media.platforms || []).length ? "<div class='admin-row'><span class='label'>Posting on:</span>" + escapeHtml(r.social_media.platforms.join(", ")) + "</div>" : "") +
+      (r.social_media && r.social_media.other ? "<div class='admin-row'><span class='label'>Other platform:</span>" + escapeHtml(r.social_media.other) + "</div>" : "") +
       (r.notes ? "<div class='admin-row'><span class='label'>Notes:</span>" + escapeHtml(r.notes) + "</div>" : "") +
       "<div class='admin-row muted'>Submitted " + new Date(r.created_at).toLocaleString() + "</div>" +
       (r.access_sent_at ? "<div class='admin-row muted'>Access info sent " + new Date(r.access_sent_at).toLocaleString() + "</div>" : "");

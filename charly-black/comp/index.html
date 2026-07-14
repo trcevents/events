@@ -36,6 +36,24 @@
   #comp-status.error { color: #ef4444; }
   #comp-status.success { color: #22c55e; }
   #other-approver-wrap { display: none; }
+
+  .toggle-group { display: flex; gap: 0.5rem; }
+  .toggle-btn {
+    flex: 1; padding: 0.6rem; border-radius: 0.5rem; border: 1px solid var(--border, #333);
+    background: transparent; color: inherit; cursor: pointer; font: inherit; font-weight: 600;
+  }
+  .toggle-btn.active { background: var(--gold, #d4af37); color: var(--gold-foreground, #1a1400); border-color: transparent; }
+
+  .pitch-box {
+    margin-top: 0.85rem; padding: 0.9rem 1rem; border-radius: 0.6rem;
+    border: 1px solid rgba(212, 175, 55, 0.35); background: rgba(212, 175, 55, 0.07);
+    font-size: 0.85rem; line-height: 1.55;
+  }
+  .pitch-box strong { color: var(--gold, #d4af37); }
+
+  .checkbox-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.5rem 1rem; }
+  .checkbox-row { display: flex; align-items: center; gap: 0.5rem; font-size: 0.88rem; }
+  .checkbox-row input { width: auto; }
 </style>
 </head>
 <body class="min-h-screen">
@@ -77,8 +95,37 @@
     </div>
 
     <div class="comp-field">
-      <label for="tickets_requested">How many tickets? *</label>
-      <input type="number" id="tickets_requested" name="tickets_requested" min="1" step="1" required />
+      <label>Do you want free tickets? *</label>
+      <div class="toggle-group" id="free_toggle">
+        <button type="button" data-value="no" class="toggle-btn active">No</button>
+        <button type="button" data-value="yes" class="toggle-btn">Yes</button>
+      </div>
+    </div>
+    <div class="comp-field" id="free_amount_wrap" style="display:none;">
+      <label for="free_tickets_requested">How many free tickets? (up to 2) *</label>
+      <input type="number" id="free_tickets_requested" min="1" max="2" step="1" />
+    </div>
+
+    <div class="comp-field">
+      <label>Are you selling tickets? *</label>
+      <div class="toggle-group" id="sell_toggle">
+        <button type="button" data-value="no" class="toggle-btn active">No</button>
+        <button type="button" data-value="yes" class="toggle-btn">Yes</button>
+      </div>
+    </div>
+    <div class="comp-field" id="sell_amount_wrap" style="display:none;">
+      <label for="sell_tickets_requested">How many do you want to sell? (up to 10 to start — ask if you need more) *</label>
+      <input type="number" id="sell_tickets_requested" min="1" max="10" step="1" />
+      <div class="pitch-box">
+        Keep <strong>70%</strong> of every ticket you sell, for your first 10. Once you've sold more
+        than that — up to 50 total — you keep <strong>50%</strong> on every extra one after that.
+        No reason to stop at 10 if you can move more.
+        <div style="margin-top:0.6rem;">
+          At $<span id="pitch-price"></span>/ticket, selling <strong id="pitch-count">0</strong> could put
+          <strong id="pitch-amount">$0</strong> in your pocket.
+          Sell your way to 50 total and that grows to <strong id="pitch-max">$0</strong>.
+        </div>
+      </div>
     </div>
 
     <div class="comp-field">
@@ -92,6 +139,20 @@
     <div class="comp-field" id="other-approver-wrap">
       <label for="other_approver_name">Their name *</label>
       <input type="text" id="other_approver_name" name="other_approver_name" />
+    </div>
+
+    <div class="comp-field">
+      <label>Where will you post the ticket link? (optional)</label>
+      <div class="checkbox-grid">
+        <label class="checkbox-row"><input type="checkbox" value="Instagram" /> Instagram</label>
+        <label class="checkbox-row"><input type="checkbox" value="Facebook" /> Facebook</label>
+        <label class="checkbox-row"><input type="checkbox" value="TikTok" /> TikTok</label>
+        <label class="checkbox-row"><input type="checkbox" value="X / Twitter" /> X / Twitter</label>
+        <label class="checkbox-row"><input type="checkbox" value="Snapchat" /> Snapchat</label>
+        <label class="checkbox-row"><input type="checkbox" value="WhatsApp Status" /> WhatsApp Status</label>
+        <label class="checkbox-row"><input type="checkbox" value="YouTube" /> YouTube</label>
+      </div>
+      <input type="text" id="social_other" placeholder="Other (write in)" style="margin-top:0.5rem;" />
     </div>
 
     <div class="comp-field">
@@ -110,6 +171,9 @@
 (function () {
   var cfg = window.TRC_SUPABASE_CONFIG;
   var client = window.supabase.createClient(cfg.url, cfg.anonKey);
+
+  // Update this when the live ticket tier changes (Early Bird -> Regular -> Door).
+  var TICKET_PRICE = 20;
 
   var approverSelect = document.getElementById("approver_select");
   var otherWrap = document.getElementById("other-approver-wrap");
@@ -145,6 +209,49 @@
     otherInput.required = isOther;
   });
 
+  function wireToggle(groupId, amountWrapId, amountInputId) {
+    var group = document.getElementById(groupId);
+    var amountWrap = document.getElementById(amountWrapId);
+    var amountInput = document.getElementById(amountInputId);
+    group.querySelectorAll(".toggle-btn").forEach(function (btn) {
+      btn.addEventListener("click", function () {
+        group.querySelectorAll(".toggle-btn").forEach(function (b) { b.classList.remove("active"); });
+        btn.classList.add("active");
+        var isYes = btn.dataset.value === "yes";
+        amountWrap.style.display = isYes ? "flex" : "none";
+        amountInput.required = isYes;
+        if (!isYes) amountInput.value = "";
+        amountInput.dispatchEvent(new Event("input"));
+      });
+    });
+  }
+  wireToggle("free_toggle", "free_amount_wrap", "free_tickets_requested");
+  wireToggle("sell_toggle", "sell_amount_wrap", "sell_tickets_requested");
+
+  function getToggleValue(groupId) {
+    var active = document.querySelector("#" + groupId + " .toggle-btn.active");
+    return active ? active.dataset.value : "no";
+  }
+
+  // Live payout estimate: 70% for the first 10 tickets sold, 50% for the
+  // next 40 (tickets 11-50). This form only asks for up to 10 up front,
+  // but the pitch shows the ceiling as an incentive to sell more later.
+  function payoutFor(n) {
+    var tier1 = Math.min(n, 10);
+    var tier2 = Math.max(Math.min(n, 50) - 10, 0);
+    return tier1 * TICKET_PRICE * 0.7 + tier2 * TICKET_PRICE * 0.5;
+  }
+
+  document.getElementById("pitch-price").textContent = TICKET_PRICE;
+  document.getElementById("pitch-max").textContent = "$" + payoutFor(50).toFixed(0);
+
+  var sellInput = document.getElementById("sell_tickets_requested");
+  sellInput.addEventListener("input", function () {
+    var n = parseInt(sellInput.value, 10) || 0;
+    document.getElementById("pitch-count").textContent = n;
+    document.getElementById("pitch-amount").textContent = "$" + payoutFor(n).toFixed(0);
+  });
+
   var form = document.getElementById("comp-form");
   var statusEl = document.getElementById("comp-status");
   var submitBtn = document.getElementById("comp-submit-btn");
@@ -165,12 +272,45 @@
       return;
     }
 
+    var wantsFree = getToggleValue("free_toggle") === "yes";
+    var wantsSell = getToggleValue("sell_toggle") === "yes";
+    var freeCount = wantsFree ? parseInt(document.getElementById("free_tickets_requested").value, 10) || 0 : 0;
+    var sellCount = wantsSell ? parseInt(document.getElementById("sell_tickets_requested").value, 10) || 0 : 0;
+
+    if (!wantsFree && !wantsSell) {
+      statusEl.textContent = "Let us know if you want free tickets, tickets to sell, or both.";
+      statusEl.className = "error";
+      submitBtn.disabled = false;
+      return;
+    }
+    if (wantsFree && freeCount < 1) {
+      statusEl.textContent = "Enter how many free tickets you'd like (up to 2).";
+      statusEl.className = "error";
+      submitBtn.disabled = false;
+      return;
+    }
+    if (wantsSell && sellCount < 1) {
+      statusEl.textContent = "Enter how many tickets you'd like to sell (up to 10).";
+      statusEl.className = "error";
+      submitBtn.disabled = false;
+      return;
+    }
+
+    var platforms = Array.prototype.slice.call(document.querySelectorAll(".checkbox-grid input:checked")).map(function (c) { return c.value; });
+    var otherSocial = document.getElementById("social_other").value.trim();
+    var socialMedia = (platforms.length || otherSocial) ? { platforms: platforms, other: otherSocial || null } : null;
+
     var payload = {
       full_name: document.getElementById("full_name").value.trim(),
       crew_or_org: document.getElementById("crew_or_org").value.trim() || null,
       email: document.getElementById("email").value.trim(),
       phone: document.getElementById("phone").value.trim() || null,
-      tickets_requested: parseInt(document.getElementById("tickets_requested").value, 10),
+      tickets_requested: freeCount + sellCount,
+      wants_free: wantsFree,
+      free_tickets_requested: freeCount,
+      wants_to_sell: wantsSell,
+      sell_tickets_requested: sellCount,
+      social_media: socialMedia,
       approver_name: approverName,
       approver_listed: !isOther,
       notes: document.getElementById("notes").value.trim() || null,

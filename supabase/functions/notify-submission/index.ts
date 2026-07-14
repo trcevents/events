@@ -217,6 +217,12 @@ function formatCompRequest(record) {
   const approverLine = record.approver_listed
     ? escapeHtml(record.approver_name)
     : `${escapeHtml(record.approver_name)} (typed in — not on the approver list, double-check this)`;
+  const social = record.social_media || {};
+  const platforms = Array.isArray(social.platforms) ? social.platforms : [];
+  const socialLine = [
+    platforms.length ? escapeHtml(platforms.join(', ')) : null,
+    social.other ? `Other: ${escapeHtml(social.other)}` : null,
+  ].filter(Boolean).join(' — ') || '—';
   return {
     subject: `New comp request: ${record.full_name} (${record.tickets_requested} tickets)`,
     html: `
@@ -225,8 +231,11 @@ function formatCompRequest(record) {
       <p><strong>Crew/Org:</strong> ${escapeHtml(record.crew_or_org || '—')}</p>
       <p><strong>Email:</strong> ${escapeHtml(record.email)}</p>
       <p><strong>Phone:</strong> ${escapeHtml(record.phone || '—')}</p>
-      <p><strong>Tickets requested:</strong> ${escapeHtml(record.tickets_requested)}</p>
+      <p><strong>Free tickets:</strong> ${record.wants_free ? escapeHtml(record.free_tickets_requested) : 'No'}</p>
+      <p><strong>Selling:</strong> ${record.wants_to_sell ? escapeHtml(record.sell_tickets_requested) + ' tickets' : 'No'}</p>
+      <p><strong>Total requested:</strong> ${escapeHtml(record.tickets_requested)}</p>
       <p><strong>Told by:</strong> ${approverLine}</p>
+      <p><strong>Posting on:</strong> ${socialLine}</p>
       <p><strong>Notes:</strong> ${escapeHtml(record.notes || '—')}</p>
       <p><a href="${COMP_ADMIN_URL}">Review in the admin page →</a></p>
     `
