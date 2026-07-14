@@ -19,6 +19,16 @@ const REPLY_TO = 'selassiefest@gmail.com';
 const NEWSLETTER_AUDIENCE_ID = '6561e97b-31be-45c8-a069-e8d8ae29711e';
 const STORAGE_PUBLIC_BASE = 'https://xdjbgcqaynnzykrglgnf.supabase.co/storage/v1/object/public/game-submissions';
 const COMP_ADMIN_URL = 'https://trcevent.com/charly-black/comp-admin/';
+// Comp-ticket approvers get copied on submissions crediting them, in
+// addition to Stephen -- keeps this in sync with the approvers/comp_admins
+// tables when adding/removing people.
+const COMP_APPROVER_EMAILS = {
+  'Marlon': 'marlontrc@gmail.com',
+  'Kirk': 'prestigesoundkirk@gmail.com',
+  'Dougie': 'douglas.allen@afccchicago.com',
+  'Bobby': 'paksipras@gmail.com',
+  'Dwight': 'smittyinnovation@gmail.com',
+};
 
 function escapeHtml(s) {
   return String(s ?? '').replace(/[&<>"']/g, (c)=>({
@@ -321,7 +331,13 @@ const TABLE_CONFIG = {
   comp_requests: {
     notifications: [
       {
-        to: ()=>'stephen@selassiefest.com',
+        to: (record)=>{
+          const emails = ['stephen@selassiefest.com'];
+          if (record.approver_listed && COMP_APPROVER_EMAILS[record.approver_name]) {
+            emails.push(COMP_APPROVER_EMAILS[record.approver_name]);
+          }
+          return emails;
+        },
         format: formatCompRequest,
         from: ()=>'TRC Events <hello@selassiefest.com>'
       }

@@ -67,6 +67,15 @@
     <button id="signout-btn" class="admin-actions button">Sign out</button>
   </div>
 
+  <div id="referral-link-card" class="admin-card" style="display:none;">
+    <h3>Your Referral Link</h3>
+    <p class="muted text-sm" style="margin-top:0.3rem;">Send this to anyone you're giving comp/sellable tickets to — it pre-fills your name so they don't have to.</p>
+    <div class="admin-actions" style="margin-top:0.75rem;">
+      <input type="text" id="referral-link-input" readonly style="flex:1; min-width:220px; background:transparent; border:1px solid var(--border,#333); border-radius:0.4rem; padding:0.45rem 0.6rem; color:inherit; font:inherit;" />
+      <button id="referral-link-copy">Copy</button>
+    </div>
+  </div>
+
   <div class="admin-card">
     <button id="new-request-toggle" class="admin-actions button primary">+ Log a Request</button>
     <p class="muted text-sm" style="margin-top:0.6rem;">Someone contacted you directly asking for tickets? Log it here instead of sending them the public form.</p>
@@ -405,8 +414,43 @@
     notAuthorizedBox.style.display = "none";
     adminApp.style.display = "block";
     document.getElementById("signed-in-as").textContent = "Signed in as " + currentUserEmail;
+    setUpReferralLink(currentUserEmail);
     loadRequests();
   }
+
+  // Only the 5 people who actually appear in the approvers dropdown get a
+  // referral link -- Stephen/Field Marshal review but don't hand out
+  // allocations themselves, so there's no name for a link to pre-fill.
+  var REFERRAL_NAMES_BY_EMAIL = {
+    "marlontrc@gmail.com": "Marlon",
+    "prestigesoundkirk@gmail.com": "Kirk",
+    "douglas.allen@afccchicago.com": "Dougie",
+    "paksipras@gmail.com": "Bobby",
+    "smittyinnovation@gmail.com": "Dwight",
+  };
+
+  function setUpReferralLink(email) {
+    var name = REFERRAL_NAMES_BY_EMAIL[email.toLowerCase()];
+    var card = document.getElementById("referral-link-card");
+    if (!name) {
+      card.style.display = "none";
+      return;
+    }
+    var url = window.location.origin + "/charly-black/comp/?ref=" + encodeURIComponent(name);
+    document.getElementById("referral-link-input").value = url;
+    card.style.display = "block";
+  }
+
+  document.getElementById("referral-link-copy").addEventListener("click", function () {
+    var input = document.getElementById("referral-link-input");
+    input.select();
+    navigator.clipboard.writeText(input.value).then(function () {
+      var btn = document.getElementById("referral-link-copy");
+      var original = btn.textContent;
+      btn.textContent = "Copied!";
+      setTimeout(function () { btn.textContent = original; }, 1500);
+    });
+  });
 
   client.auth.onAuthStateChange(function (event, session) {
     handleSession(session);

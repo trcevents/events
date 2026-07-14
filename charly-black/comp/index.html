@@ -128,6 +128,14 @@
       opt.textContent = a.name;
       approverSelect.insertBefore(opt, approverSelect.lastElementChild);
     });
+
+    // A personal link like ?ref=Marlon pre-fills who referred this person,
+    // so they don't have to remember/type the exact name themselves.
+    var ref = new URLSearchParams(window.location.search).get("ref");
+    if (ref) {
+      var match = data.find(function (a) { return a.name.toLowerCase() === ref.toLowerCase(); });
+      if (match) approverSelect.value = match.name;
+    }
   }
   loadApprovers();
 
