@@ -31,6 +31,13 @@
   #topbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; }
   .muted { color: var(--muted-foreground, #9a9a9a); }
   #msg { font-size: 0.85rem; margin-top: 0.75rem; }
+  .nr-field { display: flex; flex-direction: column; gap: 0.35rem; margin-bottom: 1rem; }
+  .nr-field label { font-size: 0.82rem; font-weight: 600; }
+  .nr-field input, .nr-field select, .nr-field textarea {
+    background: transparent; border: 1px solid var(--border, #333); border-radius: 0.4rem;
+    padding: 0.55rem 0.7rem; color: inherit; font: inherit;
+  }
+  .nr-field textarea { min-height: 4rem; resize: vertical; }
 </style>
 </head>
 <body class="min-h-screen">
@@ -58,6 +65,54 @@
       <p class="muted text-sm mt-1" id="signed-in-as"></p>
     </div>
     <button id="signout-btn" class="admin-actions button">Sign out</button>
+  </div>
+
+  <div class="admin-card">
+    <button id="new-request-toggle" class="admin-actions button primary">+ Log a Request</button>
+    <p class="muted text-sm" style="margin-top:0.6rem;">Someone contacted you directly asking for tickets? Log it here instead of sending them the public form.</p>
+
+    <form id="new-request-form" style="display:none; margin-top:1rem;">
+      <div class="nr-field">
+        <label for="nr_full_name">Their full name *</label>
+        <input type="text" id="nr_full_name" required />
+      </div>
+      <div class="nr-field">
+        <label for="nr_crew_or_org">Crew / organization (if any)</label>
+        <input type="text" id="nr_crew_or_org" />
+      </div>
+      <div class="nr-field">
+        <label for="nr_email">Their email *</label>
+        <input type="email" id="nr_email" required />
+      </div>
+      <div class="nr-field">
+        <label for="nr_phone">Their phone</label>
+        <input type="tel" id="nr_phone" />
+      </div>
+      <div class="nr-field">
+        <label for="nr_tickets">How many tickets? *</label>
+        <input type="number" id="nr_tickets" min="1" step="1" required />
+      </div>
+      <div class="nr-field">
+        <label for="nr_approver">Who approved this (you, or whoever they actually asked)? *</label>
+        <select id="nr_approver" required>
+          <option value="" disabled selected>Choose a name…</option>
+          <option value="__other__">Someone else not listed</option>
+        </select>
+      </div>
+      <div class="nr-field" id="nr-other-approver-wrap" style="display:none;">
+        <label for="nr_other_approver">Their name *</label>
+        <input type="text" id="nr_other_approver" />
+      </div>
+      <div class="nr-field">
+        <label for="nr_notes">Notes</label>
+        <textarea id="nr_notes"></textarea>
+      </div>
+      <div class="admin-actions">
+        <button type="submit" class="primary">Submit Request</button>
+        <button type="button" id="new-request-cancel">Cancel</button>
+      </div>
+      <p id="new-request-msg" class="mt-3 text-sm"></p>
+    </form>
   </div>
 
   <div class="filters">
@@ -117,6 +172,97 @@
   document.getElementById("signout-btn").addEventListener("click", async function () {
     await client.auth.signOut();
     window.location.reload();
+  });
+
+  var nrForm = document.getElementById("new-request-form");
+  var nrApproverSelect = document.getElementById("nr_approver");
+  var nrOtherWrap = document.getElementById("nr-other-approver-wrap");
+  var nrOtherInput = document.getElementById("nr_other_approver");
+  var nrApproversLoaded = false;
+
+  async function loadApproversForNewRequestForm() {
+    if (nrApproversLoaded) return;
+    var { data, error } = await client.from("approvers").select("name").eq("active", true).order("name");
+    if (error || !data) return;
+    data.forEach(function (a) {
+      var opt = document.createElement("option");
+      opt.value = a.name;
+      opt.textContent = a.name;
+      nrApproverSelect.insertBefore(opt, nrApproverSelect.lastElementChild);
+    });
+    nrApproversLoaded = true;
+  }
+
+  nrApproverSelect.addEventListener("change", function () {
+    var isOther = nrApproverSelect.value === "__other__";
+    nrOtherWrap.style.display = isOther ? "flex" : "none";
+    nrOtherInput.required = isOther;
+  });
+
+  document.getElementById("new-request-toggle").addEventListener("click", function () {
+    var showing = nrForm.style.display !== "none";
+    if (showing) {
+      nrForm.style.display = "none";
+    } else {
+      loadApproversForNewRequestForm();
+      nrForm.style.display = "block";
+    }
+  });
+
+  document.getElementById("new-request-cancel").addEventListener("click", function () {
+    nrForm.reset();
+    nrOtherWrap.style.display = "none";
+    nrForm.style.display = "none";
+    document.getElementById("new-request-msg").textContent = "";
+  });
+
+  nrForm.addEventListener("submit", async function (e) {
+    e.preventDefault();
+    var msg = document.getElementById("new-request-msg");
+    var submitBtn = nrForm.querySelector('button[type="submit"]');
+    msg.textContent = "";
+
+    var isOther = nrApproverSelect.value === "__other__";
+    var approverName = isOther ? nrOtherInput.value.trim() : nrApproverSelect.value;
+    if (!approverName) {
+      msg.textContent = "Choose who approved this.";
+      return;
+    }
+
+    submitBtn.disabled = true;
+    var originalLabel = submitBtn.textContent;
+    submitBtn.textContent = "Submitting…";
+
+    var payload = {
+      full_name: document.getElementById("nr_full_name").value.trim(),
+      crew_or_org: document.getElementById("nr_crew_or_org").value.trim() || null,
+      email: document.getElementById("nr_email").value.trim(),
+      phone: document.getElementById("nr_phone").value.trim() || null,
+      tickets_requested: parseInt(document.getElementById("nr_tickets").value, 10),
+      approver_name: approverName,
+      approver_listed: !isOther,
+      notes: document.getElementById("nr_notes").value.trim() || null,
+    };
+
+    var { error } = await client.from("comp_requests").insert(payload);
+
+    submitBtn.disabled = false;
+    submitBtn.textContent = originalLabel;
+
+    if (error) {
+      msg.textContent = "Error submitting: " + error.message;
+      return;
+    }
+
+    nrForm.reset();
+    nrOtherWrap.style.display = "none";
+    nrForm.style.display = "none";
+
+    currentFilter = "pending";
+    document.querySelectorAll(".filters button").forEach(function (b) {
+      b.classList.toggle("active", b.dataset.filter === "pending");
+    });
+    loadRequests();
   });
 
   document.querySelectorAll(".filters button").forEach(function (btn) {
