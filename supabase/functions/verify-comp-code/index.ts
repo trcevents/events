@@ -8,6 +8,13 @@ const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
 const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
 const MAX_ATTEMPTS = 8;
 
+// See request-comp-verification for why these are required on every response.
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+};
+
 async function sha256(text) {
   const data = new TextEncoder().encode(text);
   const hashBuffer = await crypto.subtle.digest("SHA-256", data);
@@ -15,13 +22,16 @@ async function sha256(text) {
 }
 
 Deno.serve(async (req) => {
+  if (req.method === "OPTIONS") {
+    return new Response("ok", { headers: corsHeaders });
+  }
   if (req.method !== "POST") {
-    return new Response("Method not allowed", { status: 405 });
+    return new Response("Method not allowed", { status: 405, headers: corsHeaders });
   }
 
   const { email, code } = await req.json();
   if (!email || !code) {
-    return new Response(JSON.stringify({ valid: false, error: "Missing email or code" }), { status: 400 });
+    return new Response(JSON.stringify({ valid: false, error: "Missing email or code" }), { status: 400, headers: corsHeaders });
   }
 
   const supabase = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
@@ -34,24 +44,24 @@ Deno.serve(async (req) => {
     .single();
 
   if (error || !row) {
-    return new Response(JSON.stringify({ valid: false, error: "No code on file for this email -- request a new one" }), { status: 200 });
+    return new Response(JSON.stringify({ valid: false, error: "No code on file for this email -- request a new one" }), { status: 200, headers: corsHeaders });
   }
 
   if (row.attempts >= MAX_ATTEMPTS) {
-    return new Response(JSON.stringify({ valid: false, error: "Too many attempts -- request a new code" }), { status: 200 });
+    return new Response(JSON.stringify({ valid: false, error: "Too many attempts -- request a new code" }), { status: 200, headers: corsHeaders });
   }
 
   if (new Date(row.expires_at) < new Date()) {
-    return new Response(JSON.stringify({ valid: false, error: "That code expired -- request a new one" }), { status: 200 });
+    return new Response(JSON.stringify({ valid: false, error: "That code expired -- request a new one" }), { status: 200, headers: corsHeaders });
   }
 
   const codeHash = await sha256(String(code).trim());
 
   if (codeHash !== row.code_hash) {
     await supabase.from("comp_verifications").update({ attempts: row.attempts + 1 }).eq("email", normalizedEmail);
-    return new Response(JSON.stringify({ valid: false, error: "That code doesn't match" }), { status: 200 });
+    return new Response(JSON.stringify({ valid: false, error: "That code doesn't match" }), { status: 200, headers: corsHeaders });
   }
 
   await supabase.from("comp_verifications").update({ verified: true }).eq("email", normalizedEmail);
-  return new Response(JSON.stringify({ valid: true }), { status: 200 });
+  return new Response(JSON.stringify({ valid: true }), { status: 200, headers: corsHeaders });
 });

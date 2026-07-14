@@ -11,6 +11,16 @@ const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
 const FROM = "TRC Events <hello@selassiefest.com>";
 const CODE_TTL_MINUTES = 10;
 
+// Called cross-origin (trcevent.com -> supabase.co) from a browser, so the
+// browser sends a CORS preflight OPTIONS request first -- without these
+// headers on every response (including OPTIONS), the browser silently
+// blocks the whole request before it reaches this code at all.
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+};
+
 async function sha256(text) {
   const data = new TextEncoder().encode(text);
   const hashBuffer = await crypto.subtle.digest("SHA-256", data);
@@ -18,13 +28,16 @@ async function sha256(text) {
 }
 
 Deno.serve(async (req) => {
+  if (req.method === "OPTIONS") {
+    return new Response("ok", { headers: corsHeaders });
+  }
   if (req.method !== "POST") {
-    return new Response("Method not allowed", { status: 405 });
+    return new Response("Method not allowed", { status: 405, headers: corsHeaders });
   }
 
   const { email } = await req.json();
   if (!email || typeof email !== "string") {
-    return new Response(JSON.stringify({ error: "Missing email" }), { status: 400 });
+    return new Response(JSON.stringify({ error: "Missing email" }), { status: 400, headers: corsHeaders });
   }
 
   const code = String(Math.floor(100000 + Math.random() * 900000));
@@ -41,7 +54,7 @@ Deno.serve(async (req) => {
     );
 
   if (dbError) {
-    return new Response(JSON.stringify({ error: dbError.message }), { status: 500 });
+    return new Response(JSON.stringify({ error: dbError.message }), { status: 500, headers: corsHeaders });
   }
 
   const emailRes = await fetch("https://api.resend.com/emails", {
@@ -62,9 +75,9 @@ Deno.serve(async (req) => {
 
   if (!emailRes.ok) {
     const text = await emailRes.text();
-    return new Response(JSON.stringify({ error: `Resend error: ${text}` }), { status: 502 });
+    return new Response(JSON.stringify({ error: `Resend error: ${text}` }), { status: 502, headers: corsHeaders });
   }
 
   const emailBody = await emailRes.json();
-  return new Response(JSON.stringify({ ok: true, _debug_email_id: emailBody.id }), { status: 200 });
+  return new Response(JSON.stringify({ ok: true, _debug_email_id: emailBody.id }), { status: 200, headers: corsHeaders });
 });

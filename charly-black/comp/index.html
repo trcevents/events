@@ -90,6 +90,24 @@
 
   <form id="comp-form" class="mt-8 rounded-xl border border-border bg-card p-6">
     <div class="comp-field">
+      <label for="email">Verify Your Email Address *</label>
+      <input type="email" id="email" name="email" required />
+      <span class="hint">We'll send your access details here. You'll need to confirm it before you can continue.</span>
+
+      <div class="verify-box">
+        <div class="verify-row">
+          <button type="button" id="send-code-btn">Verify Email Address</button>
+        </div>
+        <div class="verify-row" id="code-entry-row" style="display:none;">
+          <input type="text" id="verify-code-input" placeholder="6-digit code" inputmode="numeric" maxlength="6" />
+          <button type="button" id="verify-code-btn">Confirm Code</button>
+        </div>
+        <p class="verify-status" id="verify-status"></p>
+      </div>
+    </div>
+
+    <div id="rest-of-form" style="display:none;">
+    <div class="comp-field">
       <label for="full_name">Your full name *</label>
       <input type="text" id="full_name" name="full_name" required />
     </div>
@@ -97,23 +115,6 @@
     <div class="comp-field">
       <label for="crew_or_org">Crew / organization (if any)</label>
       <input type="text" id="crew_or_org" name="crew_or_org" />
-    </div>
-
-    <div class="comp-field">
-      <label for="email">Email *</label>
-      <input type="email" id="email" name="email" required />
-      <span class="hint">We'll send your access details here.</span>
-
-      <div class="verify-box">
-        <div class="verify-row">
-          <button type="button" id="send-code-btn">Send me a code</button>
-        </div>
-        <div class="verify-row" id="code-entry-row" style="display:none;">
-          <input type="text" id="verify-code-input" placeholder="6-digit code" inputmode="numeric" maxlength="6" />
-          <button type="button" id="verify-code-btn">Verify</button>
-        </div>
-        <p class="verify-status" id="verify-status"></p>
-      </div>
     </div>
 
     <div class="comp-field">
@@ -215,6 +216,7 @@
 
     <button type="submit" id="comp-submit-btn" class="comp-submit">Submit Request</button>
     <div id="comp-status"></div>
+    </div>
   </form>
 </div>
 
@@ -415,6 +417,8 @@
         setVerifyStatus("✓ Email verified", "ok");
         codeEntryRow.style.display = "none";
         sendCodeBtn.style.display = "none";
+        emailInput.readOnly = true;
+        document.getElementById("rest-of-form").style.display = "block";
       } else {
         setVerifyStatus(body.error || "That code didn't work.", "error");
       }
