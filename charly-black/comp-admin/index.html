@@ -170,7 +170,9 @@
   </div>
 
   <div class="admin-card">
-    <button id="new-request-toggle" class="admin-actions button primary">+ Log a Request</button>
+    <div class="admin-actions">
+      <button id="new-request-toggle" class="primary">+ Log a Request</button>
+    </div>
     <p class="muted text-sm" style="margin-top:0.6rem;">Someone contacted you directly asking for tickets? Log it here instead of sending them the public form.</p>
 
     <form id="new-request-form" style="display:none; margin-top:1rem;">
@@ -460,7 +462,9 @@
     submitBtn.textContent = originalLabel;
 
     if (error) {
-      msg.textContent = "Error submitting: " + error.message;
+      msg.textContent = error.code === "23505"
+        ? "There's already a request on file with this email or phone number -- check the list before logging another."
+        : "Error submitting: " + error.message;
       return;
     }
 

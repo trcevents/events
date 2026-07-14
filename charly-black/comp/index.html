@@ -319,7 +319,11 @@
     var { error } = await client.from("comp_requests").insert(payload);
 
     if (error) {
-      statusEl.textContent = "Something went wrong submitting your request. Please try again or call/text 414-909-3279.";
+      if (error.code === "23505") {
+        statusEl.textContent = "Looks like you've already submitted a request with this email or phone number. If you need to change something, call or text 414-909-3279.";
+      } else {
+        statusEl.textContent = "Something went wrong submitting your request. Please try again or call/text 414-909-3279.";
+      }
       statusEl.className = "error";
       submitBtn.disabled = false;
       return;
