@@ -232,17 +232,42 @@
         <input type="text" id="nr_other_approver" />
       </div>
       <div class="nr-field">
-        <label>Where will they post the ticket link? (optional)</label>
-        <div class="checkbox-grid" id="nr_social_grid">
-          <label class="checkbox-row"><input type="checkbox" value="Instagram" /> Instagram</label>
-          <label class="checkbox-row"><input type="checkbox" value="Facebook" /> Facebook</label>
-          <label class="checkbox-row"><input type="checkbox" value="TikTok" /> TikTok</label>
-          <label class="checkbox-row"><input type="checkbox" value="X / Twitter" /> X / Twitter</label>
-          <label class="checkbox-row"><input type="checkbox" value="Snapchat" /> Snapchat</label>
-          <label class="checkbox-row"><input type="checkbox" value="WhatsApp Status" /> WhatsApp Status</label>
-          <label class="checkbox-row"><input type="checkbox" value="YouTube" /> YouTube</label>
+        <label>Where can we follow them? Pick at least one and get their real handle *</label>
+        <div id="nr_social_list" style="margin-top:0.4rem;">
+          <div class="nr-social-row" data-platform="Instagram">
+            <label class="checkbox-row"><input type="checkbox" /> Instagram</label>
+            <input type="text" class="nr-social-handle" placeholder="@handle" style="display:none;" />
+          </div>
+          <div class="nr-social-row" data-platform="TikTok">
+            <label class="checkbox-row"><input type="checkbox" /> TikTok</label>
+            <input type="text" class="nr-social-handle" placeholder="@handle" style="display:none;" />
+          </div>
+          <div class="nr-social-row" data-platform="Facebook">
+            <label class="checkbox-row"><input type="checkbox" /> Facebook</label>
+            <input type="text" class="nr-social-handle" placeholder="Profile name or link" style="display:none;" />
+          </div>
+          <div class="nr-social-row" data-platform="X / Twitter">
+            <label class="checkbox-row"><input type="checkbox" /> X / Twitter</label>
+            <input type="text" class="nr-social-handle" placeholder="@handle" style="display:none;" />
+          </div>
+          <div class="nr-social-row" data-platform="Snapchat">
+            <label class="checkbox-row"><input type="checkbox" /> Snapchat</label>
+            <input type="text" class="nr-social-handle" placeholder="@username" style="display:none;" />
+          </div>
+          <div class="nr-social-row" data-platform="WhatsApp Status">
+            <label class="checkbox-row"><input type="checkbox" /> WhatsApp Status</label>
+            <input type="text" class="nr-social-handle" placeholder="Number they'll post from" style="display:none;" />
+          </div>
+          <div class="nr-social-row" data-platform="YouTube">
+            <label class="checkbox-row"><input type="checkbox" /> YouTube</label>
+            <input type="text" class="nr-social-handle" placeholder="Channel name or link" style="display:none;" />
+          </div>
+          <div class="nr-social-row" data-platform="__other__">
+            <label class="checkbox-row"><input type="checkbox" /> Other</label>
+            <input type="text" class="nr-social-handle" id="nr_social_other_platform" placeholder="Which platform?" style="display:none; margin-bottom:0.4rem;" />
+            <input type="text" class="nr-social-handle" placeholder="@handle or link" style="display:none;" />
+          </div>
         </div>
-        <input type="text" id="nr_social_other" placeholder="Other (write in)" style="margin-top:0.5rem;" />
       </div>
       <div class="nr-field">
         <label for="nr_notes">Notes</label>
@@ -374,6 +399,33 @@
     return active ? active.dataset.value : "no";
   }
 
+  document.querySelectorAll(".nr-social-row").forEach(function (row) {
+    var checkbox = row.querySelector('input[type="checkbox"]');
+    var handleInputs = row.querySelectorAll(".nr-social-handle");
+    checkbox.addEventListener("change", function () {
+      handleInputs.forEach(function (inp) { inp.style.display = checkbox.checked ? "block" : "none"; });
+    });
+  });
+
+  function collectNrSocialMedia() {
+    var result = [];
+    document.querySelectorAll(".nr-social-row").forEach(function (row) {
+      var checkbox = row.querySelector('input[type="checkbox"]');
+      if (!checkbox.checked) return;
+      var platform = row.dataset.platform;
+      if (platform === "__other__") {
+        var platformName = document.getElementById("nr_social_other_platform").value.trim();
+        var handle = row.querySelectorAll(".nr-social-handle")[1].value.trim();
+        if (platformName && handle) result.push({ platform: platformName, handle: handle });
+      } else {
+        var handleInput = row.querySelector(".nr-social-handle");
+        var val = handleInput.value.trim();
+        if (val) result.push({ platform: platform, handle: val });
+      }
+    });
+    return result;
+  }
+
   document.getElementById("new-request-toggle").addEventListener("click", function () {
     var showing = nrForm.style.display !== "none";
     if (showing) {
@@ -391,6 +443,7 @@
       });
       document.getElementById(pair[1]).style.display = "none";
     });
+    document.querySelectorAll(".nr-social-handle").forEach(function (inp) { inp.style.display = "none"; });
   }
 
   document.getElementById("new-request-cancel").addEventListener("click", function () {
@@ -432,13 +485,15 @@
       return;
     }
 
+    var nrSocialMedia = collectNrSocialMedia();
+    if (!nrSocialMedia.length) {
+      msg.textContent = "Pick at least one social media platform and get their real handle.";
+      return;
+    }
+
     submitBtn.disabled = true;
     var originalLabel = submitBtn.textContent;
     submitBtn.textContent = "Submitting…";
-
-    var nrPlatforms = Array.prototype.slice.call(document.querySelectorAll("#nr_social_grid input:checked")).map(function (c) { return c.value; });
-    var nrOtherSocial = document.getElementById("nr_social_other").value.trim();
-    var nrSocialMedia = (nrPlatforms.length || nrOtherSocial) ? { platforms: nrPlatforms, other: nrOtherSocial || null } : null;
 
     var payload = {
       full_name: document.getElementById("nr_full_name").value.trim(),
@@ -524,8 +579,7 @@
         "<div><span class='label'>Free:</span>" + (r.wants_free ? r.free_tickets_requested : "—") + "</div>" +
         "<div><span class='label'>Selling:</span>" + (r.wants_to_sell ? r.sell_tickets_requested : "—") + "</div>" +
       "</div>" +
-      (r.social_media && (r.social_media.platforms || []).length ? "<div class='admin-row'><span class='label'>Posting on:</span>" + escapeHtml(r.social_media.platforms.join(", ")) + "</div>" : "") +
-      (r.social_media && r.social_media.other ? "<div class='admin-row'><span class='label'>Other platform:</span>" + escapeHtml(r.social_media.other) + "</div>" : "") +
+      (Array.isArray(r.social_media) && r.social_media.length ? "<div class='admin-row'><span class='label'>Social:</span>" + escapeHtml(r.social_media.map(function (s) { return s.platform + " " + s.handle; }).join(" · ")) + "</div>" : "") +
       (r.notes ? "<div class='admin-row'><span class='label'>Notes:</span>" + escapeHtml(r.notes) + "</div>" : "") +
       "<div class='admin-row muted'>Submitted " + new Date(r.created_at).toLocaleString() + "</div>" +
       (r.access_sent_at ? "<div class='admin-row muted'>Access info sent " + new Date(r.access_sent_at).toLocaleString() + "</div>" : "");

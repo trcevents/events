@@ -217,12 +217,10 @@ function formatCompRequest(record) {
   const approverLine = record.approver_listed
     ? escapeHtml(record.approver_name)
     : `${escapeHtml(record.approver_name)} (typed in — not on the approver list, double-check this)`;
-  const social = record.social_media || {};
-  const platforms = Array.isArray(social.platforms) ? social.platforms : [];
-  const socialLine = [
-    platforms.length ? escapeHtml(platforms.join(', ')) : null,
-    social.other ? `Other: ${escapeHtml(social.other)}` : null,
-  ].filter(Boolean).join(' — ') || '—';
+  const social = Array.isArray(record.social_media) ? record.social_media : [];
+  const socialLine = social.length
+    ? social.map((s)=>`${escapeHtml(s.platform)}: ${escapeHtml(s.handle)}`).join(' — ')
+    : '—';
   return {
     subject: `New comp request: ${record.full_name} (${record.tickets_requested} tickets)`,
     html: `
