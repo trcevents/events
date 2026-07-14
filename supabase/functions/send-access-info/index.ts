@@ -5,7 +5,7 @@
 // Runs with the caller's own Supabase session (forwarded Authorization header),
 // so Row Level Security enforces that only stephen@selassiefest.com can trigger
 // this — no service_role key needed.
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient } from "npm:@supabase/supabase-js@2";
 
 const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
 // selassiefest.com is the Resend-verified sending domain for this project
