@@ -10,6 +10,7 @@ const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
 const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
 const FROM = "TRC Events <hello@selassiefest.com>";
 const CODE_TTL_MINUTES = 10;
+const COOLDOWN_SECONDS = 60;
 
 // Called cross-origin (trcevent.com -> supabase.co) from a browser, so the
 // browser sends a CORS preflight OPTIONS request first -- without these
@@ -40,16 +41,31 @@ Deno.serve(async (req) => {
     return new Response(JSON.stringify({ error: "Missing email" }), { status: 400, headers: corsHeaders });
   }
 
+  const normalizedEmail = email.trim().toLowerCase();
+  const supabase = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
+
+  const { data: existing } = await supabase
+    .from("comp_verifications")
+    .select("created_at")
+    .eq("email", normalizedEmail)
+    .single();
+
+  if (existing) {
+    const secondsSince = (Date.now() - new Date(existing.created_at).getTime()) / 1000;
+    if (secondsSince < COOLDOWN_SECONDS) {
+      const wait = Math.ceil(COOLDOWN_SECONDS - secondsSince);
+      return new Response(JSON.stringify({ error: `Please wait ${wait}s before requesting another code.` }), { status: 200, headers: corsHeaders });
+    }
+  }
+
   const code = String(Math.floor(100000 + Math.random() * 900000));
   const codeHash = await sha256(code);
   const expiresAt = new Date(Date.now() + CODE_TTL_MINUTES * 60 * 1000).toISOString();
 
-  const supabase = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
-
   const { error: dbError } = await supabase
     .from("comp_verifications")
     .upsert(
-      { email: email.trim().toLowerCase(), code_hash: codeHash, verified: false, attempts: 0, expires_at: expiresAt },
+      { email: normalizedEmail, code_hash: codeHash, verified: false, attempts: 0, expires_at: expiresAt },
       { onConflict: "email" },
     );
 

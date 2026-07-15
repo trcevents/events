@@ -623,7 +623,47 @@
       actions.appendChild(makeButton("Reopen as Pending", "", function () { setStatus(r.id, "pending"); }));
     }
 
+    var editPanel = document.createElement("div");
+    editPanel.style.display = "none";
+    editPanel.style.marginTop = "0.75rem";
+    editPanel.innerHTML =
+      "<div class='nr-field'><label>Full name</label><input type='text' class='edit-full-name' value=\"" + escapeHtml(r.full_name) + "\" /></div>" +
+      "<div class='nr-field'><label>Email</label><input type='email' class='edit-email' value=\"" + escapeHtml(r.email) + "\" /></div>" +
+      "<div class='nr-field'><label>Phone</label><input type='tel' class='edit-phone' value=\"" + escapeHtml(r.phone || "") + "\" /></div>" +
+      "<p class='edit-msg' style='font-size:0.8rem;'></p>";
+    var editActions = document.createElement("div");
+    editActions.className = "admin-actions";
+    editActions.appendChild(makeButton("Save", "primary", async function () {
+      var newName = editPanel.querySelector(".edit-full-name").value.trim();
+      var newEmail = editPanel.querySelector(".edit-email").value.trim();
+      var newPhone = editPanel.querySelector(".edit-phone").value.trim();
+      var msgEl = editPanel.querySelector(".edit-msg");
+      if (!newName || !newEmail) {
+        msgEl.textContent = "Name and email can't be blank.";
+        return;
+      }
+      var { error } = await client.from("comp_requests")
+        .update({ full_name: newName, email: newEmail, phone: newPhone || null })
+        .eq("id", r.id);
+      if (error) {
+        msgEl.textContent = error.code === "23505"
+          ? "Another request already uses that email or phone number."
+          : "Error: " + error.message;
+        return;
+      }
+      loadRequests();
+    }));
+    editActions.appendChild(makeButton("Cancel", "", function () {
+      editPanel.style.display = "none";
+    }));
+    editPanel.appendChild(editActions);
+
+    actions.appendChild(makeButton("Edit Info", "", function () {
+      editPanel.style.display = editPanel.style.display === "none" ? "block" : "none";
+    }));
+
     card.appendChild(actions);
+    card.appendChild(editPanel);
     listEl.appendChild(card);
   }
 
