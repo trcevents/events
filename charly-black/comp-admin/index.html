@@ -142,6 +142,24 @@
   <input type="password" id="signin-password" placeholder="Password" autocomplete="current-password" />
   <button id="signin-btn">Sign In</button>
   <p id="signin-msg" class="mt-3 text-sm"></p>
+  <p style="margin-top:1rem;"><a href="#" id="forgot-password-link" style="font-size:0.85rem;">Forgot password?</a></p>
+</div>
+
+<div id="forgot-password-box" style="display:none; max-width:360px; margin:2rem auto 4rem; text-align:center;">
+  <h1 class="font-display text-xl font-bold">Reset Password</h1>
+  <p class="muted mt-2 text-sm">Enter your email to get a reset code.</p>
+  <input type="email" id="fp-email" placeholder="you@example.com" autocomplete="email" />
+  <button id="fp-send-btn">Send Reset Code</button>
+  <p id="fp-send-msg" class="mt-3 text-sm"></p>
+
+  <div id="fp-reset-fields" style="display:none; margin-top:1rem;">
+    <input type="text" id="fp-code" placeholder="6-digit code" inputmode="numeric" maxlength="6" />
+    <input type="password" id="fp-new-password" placeholder="New password (8+ characters)" autocomplete="new-password" />
+    <button id="fp-reset-btn">Set New Password</button>
+    <p id="fp-reset-msg" class="mt-3 text-sm"></p>
+  </div>
+
+  <p style="margin-top:1rem;"><a href="#" id="back-to-signin-link" style="font-size:0.85rem;">Back to sign in</a></p>
 </div>
 
 <div id="not-authorized" style="display:none; max-width:420px; margin:6rem auto; text-align:center;">
@@ -166,6 +184,31 @@
     <div class="admin-actions" style="margin-top:0.75rem;">
       <input type="text" id="referral-link-input" readonly style="flex:1; min-width:220px; background:transparent; border:1px solid var(--border,#333); border-radius:0.4rem; padding:0.45rem 0.6rem; color:inherit; font:inherit;" />
       <button id="referral-link-copy">Copy</button>
+    </div>
+  </div>
+
+  <div id="manage-team-card" class="admin-card" style="display:none;">
+    <div class="admin-actions">
+      <button id="manage-team-toggle" class="primary">Manage Team</button>
+    </div>
+    <div id="manage-team-panel" style="display:none; margin-top:1rem;">
+      <h3>Reviewers</h3>
+      <div id="admins-list" style="margin-top:0.5rem;"></div>
+
+      <h3 style="margin-top:1.5rem;">Approvers (appear in the public form's dropdown)</h3>
+      <div id="approvers-list" style="margin-top:0.5rem;"></div>
+
+      <h3 style="margin-top:1.5rem;">Add a Person</h3>
+      <div class="nr-field"><label>Name</label><input type="text" id="mt-name" /></div>
+      <div class="nr-field"><label>Email</label><input type="email" id="mt-email" /></div>
+      <div class="nr-field">
+        <label class="checkbox-row"><input type="checkbox" id="mt-as-admin" /> Give them sign-in access (reviewer)</label>
+        <label class="checkbox-row"><input type="checkbox" id="mt-as-approver" /> Add to the approvers dropdown</label>
+      </div>
+      <div class="admin-actions">
+        <button id="mt-add-btn" class="primary">Add Person</button>
+      </div>
+      <p id="mt-add-msg" class="mt-3 text-sm"></p>
     </div>
   </div>
 
@@ -338,6 +381,94 @@
   document.getElementById("signout-btn").addEventListener("click", async function () {
     await client.auth.signOut();
     window.location.reload();
+  });
+
+  var signinBoxEl = document.getElementById("signin-box");
+  var forgotBoxEl = document.getElementById("forgot-password-box");
+
+  document.getElementById("forgot-password-link").addEventListener("click", function (e) {
+    e.preventDefault();
+    signinBoxEl.style.display = "none";
+    forgotBoxEl.style.display = "block";
+  });
+
+  document.getElementById("back-to-signin-link").addEventListener("click", function (e) {
+    e.preventDefault();
+    forgotBoxEl.style.display = "none";
+    signinBoxEl.style.display = "block";
+  });
+
+  document.getElementById("fp-send-btn").addEventListener("click", async function () {
+    var btn = this;
+    var email = document.getElementById("fp-email").value.trim();
+    var msg = document.getElementById("fp-send-msg");
+    if (!email) {
+      msg.textContent = "Enter your email first.";
+      return;
+    }
+    btn.disabled = true;
+    var originalLabel = btn.textContent;
+    btn.textContent = "Sending…";
+    msg.textContent = "";
+    try {
+      var res = await fetch(cfg.url + "/functions/v1/request-admin-password-reset", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", apikey: cfg.anonKey },
+        body: JSON.stringify({ email: email }),
+      });
+      var body = await res.json();
+      if (body.error) {
+        msg.textContent = body.error;
+      } else {
+        msg.textContent = "If that email is registered, a code was sent.";
+        document.getElementById("fp-reset-fields").style.display = "block";
+      }
+    } catch (e) {
+      msg.textContent = "Something went wrong. Try again.";
+    } finally {
+      btn.disabled = false;
+      btn.textContent = originalLabel;
+    }
+  });
+
+  document.getElementById("fp-reset-btn").addEventListener("click", async function () {
+    var btn = this;
+    var email = document.getElementById("fp-email").value.trim();
+    var code = document.getElementById("fp-code").value.trim();
+    var newPassword = document.getElementById("fp-new-password").value;
+    var msg = document.getElementById("fp-reset-msg");
+    if (!code || !newPassword) {
+      msg.textContent = "Enter the code and a new password.";
+      return;
+    }
+    btn.disabled = true;
+    var originalLabel = btn.textContent;
+    btn.textContent = "Saving…";
+    msg.textContent = "";
+    try {
+      var res = await fetch(cfg.url + "/functions/v1/reset-admin-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", apikey: cfg.anonKey },
+        body: JSON.stringify({ email: email, code: code, newPassword: newPassword }),
+      });
+      var body = await res.json();
+      if (!body.ok) {
+        msg.textContent = body.error || "That didn't work. Try again.";
+        btn.disabled = false;
+        btn.textContent = originalLabel;
+        return;
+      }
+      msg.textContent = "Password set! Sign in with it now.";
+      setTimeout(function () {
+        forgotBoxEl.style.display = "none";
+        signinBoxEl.style.display = "block";
+        document.getElementById("signin-email").value = email;
+      }, 1200);
+    } catch (e) {
+      msg.textContent = "Something went wrong. Try again.";
+      btn.disabled = false;
+      btn.textContent = originalLabel;
+    }
   });
 
   var nrForm = document.getElementById("new-request-form");
@@ -724,25 +855,30 @@
     notAuthorizedBox.style.display = "none";
     adminApp.style.display = "block";
     document.getElementById("signed-in-as").textContent = "Signed in as " + currentUserEmail;
-    setUpReferralLink(currentUserEmail);
+    setUpReferralLink();
     loadRequests();
+
+    var { data: isSuperAdmin } = await client.rpc("is_comp_super_admin");
+    if (isSuperAdmin) {
+      document.getElementById("manage-team-card").style.display = "block";
+    }
   }
 
-  // Only the 5 people who actually appear in the approvers dropdown get a
+  // Only people who actually appear in the approvers dropdown get a
   // referral link -- Stephen/Field Marshall review but don't hand out
   // allocations themselves, so there's no name for a link to pre-fill.
-  var REFERRAL_NAMES_BY_EMAIL = {
-    "marlontrc@gmail.com": "Marlon",
-    "prestigesoundkirk@gmail.com": "Kirk",
-    "douglas.allen@afccchicago.com": "Dougie",
-    "paksipras@gmail.com": "Bobby",
-    "smittyinnovation@gmail.com": "Dwight",
-  };
-
-  function setUpReferralLink(email) {
-    var name = REFERRAL_NAMES_BY_EMAIL[email.toLowerCase()];
+  // Looked up dynamically (not hardcoded) so adding someone via Manage
+  // Team automatically gives them a link with no code change needed.
+  async function setUpReferralLink() {
     var card = document.getElementById("referral-link-card");
+    var { data: name } = await client.rpc("my_admin_name");
     if (!name) {
+      card.style.display = "none";
+      return;
+    }
+    var { data: approvers } = await client.from("approvers").select("name").eq("active", true);
+    var isApprover = (approvers || []).some(function (a) { return a.name === name; });
+    if (!isApprover) {
       card.style.display = "none";
       return;
     }
@@ -750,6 +886,89 @@
     document.getElementById("referral-link-input").value = url;
     card.style.display = "block";
   }
+
+  document.getElementById("manage-team-toggle").addEventListener("click", function () {
+    var panel = document.getElementById("manage-team-panel");
+    var showing = panel.style.display !== "none";
+    if (showing) {
+      panel.style.display = "none";
+    } else {
+      panel.style.display = "block";
+      loadRosters();
+    }
+  });
+
+  async function loadRosters() {
+    var { data: admins } = await client.from("comp_admins").select("*").order("name");
+    var adminsList = document.getElementById("admins-list");
+    adminsList.innerHTML = "";
+    (admins || []).forEach(function (a) {
+      var row = document.createElement("div");
+      row.className = "admin-row";
+      row.innerHTML = "<div>" + escapeHtml(a.name) + " -- " + escapeHtml(a.email) + (a.is_super_admin ? " <span class='badge approved'>super admin</span>" : "") + "</div>";
+      if (!a.is_super_admin) {
+        var toggleBtn = makeButton(a.active ? "Deactivate" : "Reactivate", "", async function () {
+          await client.from("comp_admins").update({ active: !a.active }).eq("id", a.id);
+          loadRosters();
+        });
+        row.appendChild(toggleBtn);
+      }
+      adminsList.appendChild(row);
+    });
+
+    var { data: apps } = await client.from("approvers").select("*").order("name");
+    var appsList = document.getElementById("approvers-list");
+    appsList.innerHTML = "";
+    (apps || []).forEach(function (a) {
+      var row = document.createElement("div");
+      row.className = "admin-row";
+      row.innerHTML = "<div>" + escapeHtml(a.name) + (a.active ? "" : " <span class='badge rejected'>inactive</span>") + "</div>";
+      var toggleBtn = makeButton(a.active ? "Deactivate" : "Reactivate", "", async function () {
+        await client.from("approvers").update({ active: !a.active }).eq("id", a.id);
+        loadRosters();
+      });
+      row.appendChild(toggleBtn);
+      appsList.appendChild(row);
+    });
+  }
+
+  document.getElementById("mt-add-btn").addEventListener("click", async function () {
+    var btn = this;
+    var name = document.getElementById("mt-name").value.trim();
+    var email = document.getElementById("mt-email").value.trim();
+    var asAdmin = document.getElementById("mt-as-admin").checked;
+    var asApprover = document.getElementById("mt-as-approver").checked;
+    var msg = document.getElementById("mt-add-msg");
+
+    if (!name || !email || (!asAdmin && !asApprover)) {
+      msg.textContent = "Enter a name, email, and pick at least one option.";
+      return;
+    }
+
+    btn.disabled = true;
+    var originalLabel = btn.textContent;
+    btn.textContent = "Adding…";
+    msg.textContent = "";
+
+    var { data, error } = await client.functions.invoke("admin-create-person", {
+      body: { name: name, email: email, asAdmin: asAdmin, asApprover: asApprover },
+    });
+
+    btn.disabled = false;
+    btn.textContent = originalLabel;
+
+    if (error || (data && data.ok === false)) {
+      msg.textContent = "Error: " + (error ? error.message : data.error);
+      return;
+    }
+
+    msg.textContent = "Added" + (asAdmin ? " -- they'll get a welcome email to set their password." : ".");
+    document.getElementById("mt-name").value = "";
+    document.getElementById("mt-email").value = "";
+    document.getElementById("mt-as-admin").checked = false;
+    document.getElementById("mt-as-approver").checked = false;
+    loadRosters();
+  });
 
   document.getElementById("referral-link-copy").addEventListener("click", function () {
     var input = document.getElementById("referral-link-input");
