@@ -14,18 +14,33 @@ const NOTIFY_TO = "stephen@selassiefest.com";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers":
+    "authorization, x-client-info, apikey, content-type",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
+// Deno's Response defaults to text/plain when Content-Type isn't set
+// explicitly -- which makes supabase-js's functions.invoke() parse the
+// body with .text() instead of .json(), so `data` ends up as a raw string
+// and every `data?.field` check silently reads undefined. Every JSON
+// response below must use this, not bare corsHeaders.
+const jsonHeaders = { ...corsHeaders, "Content-Type": "application/json" };
 
 function escapeHtml(s) {
-  return String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+  return String(s ?? "").replace(
+    /[&<>"']/g,
+    (c) =>
+      ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[
+        c
+      ],
+  );
 }
 
 async function sha256(text) {
   const data = new TextEncoder().encode(text);
   const hashBuffer = await crypto.subtle.digest("SHA-256", data);
-  return Array.from(new Uint8Array(hashBuffer)).map((b) => b.toString(16).padStart(2, "0")).join("");
+  return Array.from(new Uint8Array(hashBuffer))
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
 }
 
 Deno.serve(async (req) => {
@@ -33,14 +48,28 @@ Deno.serve(async (req) => {
     return new Response("ok", { headers: corsHeaders });
   }
   if (req.method !== "POST") {
-    return new Response("Method not allowed", { status: 405, headers: corsHeaders });
+    return new Response("Method not allowed", {
+      status: 405,
+      headers: corsHeaders,
+    });
   }
 
   const body = await req.json();
-  const { accessCode, socialMedia, pressPhotoUrl, shortBio, promoCommitmentAck, dj, openingAct } = body;
+  const {
+    accessCode,
+    socialMedia,
+    pressPhotoUrl,
+    shortBio,
+    promoCommitmentAck,
+    dj,
+    openingAct,
+  } = body;
 
   if (!accessCode) {
-    return new Response(JSON.stringify({ error: "Missing access code." }), { status: 400, headers: corsHeaders });
+    return new Response(JSON.stringify({ error: "Missing access code." }), {
+      status: 400,
+      headers: jsonHeaders,
+    });
   }
 
   const supabase = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
@@ -53,10 +82,16 @@ Deno.serve(async (req) => {
     .single();
 
   if (inviteError || !invite) {
-    return new Response(JSON.stringify({ error: "That access code isn't recognized." }), { status: 200, headers: corsHeaders });
+    return new Response(
+      JSON.stringify({ error: "That access code isn't recognized." }),
+      { status: 200, headers: jsonHeaders },
+    );
   }
   if (invite.status === "revoked") {
-    return new Response(JSON.stringify({ error: "This access code is no longer active." }), { status: 200, headers: corsHeaders });
+    return new Response(
+      JSON.stringify({ error: "This access code is no longer active." }),
+      { status: 200, headers: jsonHeaders },
+    );
   }
 
   const insertRow = {
@@ -72,7 +107,9 @@ Deno.serve(async (req) => {
   if (invite.role === "DJ" && dj) {
     Object.assign(insertRow, {
       dj_format: dj.format || null,
-      dj_equipment_needed: Array.isArray(dj.equipmentNeeded) ? dj.equipmentNeeded : null,
+      dj_equipment_needed: Array.isArray(dj.equipmentNeeded)
+        ? dj.equipmentNeeded
+        : null,
       dj_brings_own_gear: dj.bringsOwnGear ?? null,
       dj_needs_table_booth: dj.needsTableBooth ?? null,
       dj_needs_mc_mic: dj.needsMcMic ?? null,
@@ -95,19 +132,32 @@ Deno.serve(async (req) => {
     });
   }
 
-  const { error: insertError } = await supabase.from("tech_rider_submissions").insert(insertRow);
+  const { error: insertError } = await supabase
+    .from("tech_rider_submissions")
+    .insert(insertRow);
   if (insertError) {
     console.error("tech_rider_submissions insert failed:", insertError);
-    return new Response(JSON.stringify({ error: "Couldn't save your tech rider. Please try again." }), { status: 500, headers: corsHeaders });
+    return new Response(
+      JSON.stringify({
+        error: "Couldn't save your tech rider. Please try again.",
+      }),
+      { status: 500, headers: jsonHeaders },
+    );
   }
 
-  const socialLine = Array.isArray(socialMedia) && socialMedia.length
-    ? socialMedia.map((s) => `${escapeHtml(s.platform)}: ${escapeHtml(s.handle)}`).join(" — ")
-    : "—";
+  const socialLine =
+    Array.isArray(socialMedia) && socialMedia.length
+      ? socialMedia
+          .map((s) => `${escapeHtml(s.platform)}: ${escapeHtml(s.handle)}`)
+          .join(" — ")
+      : "—";
 
   const emailRes = await fetch("https://api.resend.com/emails", {
     method: "POST",
-    headers: { Authorization: `Bearer ${RESEND_API_KEY}`, "Content-Type": "application/json" },
+    headers: {
+      Authorization: `Bearer ${RESEND_API_KEY}`,
+      "Content-Type": "application/json",
+    },
     body: JSON.stringify({
       from: FROM,
       to: [NOTIFY_TO],
@@ -131,8 +181,15 @@ Deno.serve(async (req) => {
   });
 
   if (!emailRes.ok) {
-    console.error("Resend send failed:", emailRes.status, await emailRes.text());
+    console.error(
+      "Resend send failed:",
+      emailRes.status,
+      await emailRes.text(),
+    );
   }
 
-  return new Response(JSON.stringify({ ok: true }), { status: 200, headers: corsHeaders });
+  return new Response(JSON.stringify({ ok: true }), {
+    status: 200,
+    headers: jsonHeaders,
+  });
 });

@@ -22,19 +22,35 @@ const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
 const FROM = "TRC Events <hello@selassiefest.com>";
 const NOTIFY_TO = "stephen@selassiefest.com";
 
-const PAYMENT_METHODS = ["Zelle", "Cash App", "Check", "Cash", "Bank Transfer", "Other"];
+const PAYMENT_METHODS = [
+  "Zelle",
+  "Cash App",
+  "Check",
+  "Cash",
+  "Bank Transfer",
+  "Other",
+];
 const PAYEE_ENTITIES = ["Artist directly", "Manager", "Company/LLC"];
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers":
+    "authorization, x-client-info, apikey, content-type",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
+// Deno's Response defaults to text/plain when Content-Type isn't set
+// explicitly -- which makes supabase-js's functions.invoke() parse the
+// body with .text() instead of .json(), so `data` ends up as a raw string
+// and every `data?.field` check silently reads undefined. Every JSON
+// response below must use this, not bare corsHeaders.
+const jsonHeaders = { ...corsHeaders, "Content-Type": "application/json" };
 
 async function sha256(text) {
   const data = new TextEncoder().encode(text);
   const hashBuffer = await crypto.subtle.digest("SHA-256", data);
-  return Array.from(new Uint8Array(hashBuffer)).map((b) => b.toString(16).padStart(2, "0")).join("");
+  return Array.from(new Uint8Array(hashBuffer))
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
 }
 
 function uint8ToBase64(bytes) {
@@ -48,7 +64,11 @@ function uint8ToBase64(bytes) {
 
 function formatDate(dateStr) {
   if (!dateStr) return "To be confirmed";
-  return new Date(`${dateStr}T00:00:00`).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" });
+  return new Date(`${dateStr}T00:00:00`).toLocaleDateString("en-US", {
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+  });
 }
 
 const PAGE_WIDTH = 612;
@@ -227,21 +247,40 @@ async function buildContractPdf(d) {
     }
   }
 
-  function drawParagraph(text, { size = 10.5, bold = false, gapAfter = 10, lineHeight = 14 } = {}) {
+  function drawParagraph(
+    text,
+    { size = 10.5, bold = false, gapAfter = 10, lineHeight = 14 } = {},
+  ) {
     const useFont = bold ? boldFont : font;
     for (const line of wrapText(text, useFont, size, CONTENT_WIDTH)) {
       ensureSpace(lineHeight);
-      page.drawText(line, { x: MARGIN, y, size, font: useFont, color: rgb(0.1, 0.1, 0.1) });
+      page.drawText(line, {
+        x: MARGIN,
+        y,
+        size,
+        font: useFont,
+        color: rgb(0.1, 0.1, 0.1),
+      });
       y -= lineHeight;
     }
     y -= gapAfter;
   }
 
-  drawParagraph("INDEPENDENT PERFORMANCE AGREEMENT", { size: 15, bold: true, gapAfter: 4, lineHeight: 18 });
-  drawParagraph("Ras Tafari Inc  —  TRC Events", { size: 10, gapAfter: 18, lineHeight: 13 });
+  drawParagraph("INDEPENDENT PERFORMANCE AGREEMENT", {
+    size: 15,
+    bold: true,
+    gapAfter: 4,
+    lineHeight: 18,
+  });
+  drawParagraph("Ras Tafari Inc  —  TRC Events", {
+    size: 10,
+    gapAfter: 18,
+    lineHeight: 13,
+  });
 
   for (const section of buildContractSections(d)) {
-    if (section.heading) drawParagraph(section.heading, { bold: true, gapAfter: 3 });
+    if (section.heading)
+      drawParagraph(section.heading, { bold: true, gapAfter: 3 });
     drawParagraph(section.body);
   }
 
@@ -249,14 +288,20 @@ async function buildContractPdf(d) {
   y -= 10;
   drawParagraph("SIGNATURE", { bold: true, gapAfter: 6 });
   drawParagraph(`Talent's electronic signature: ${d.signatureTypedName}`);
-  drawParagraph(`Legal name: ${d.signerFullLegalName}${d.signerBusinessName ? ` (${d.signerBusinessName})` : ""}`);
+  drawParagraph(
+    `Legal name: ${d.signerFullLegalName}${d.signerBusinessName ? ` (${d.signerBusinessName})` : ""}`,
+  );
   drawParagraph(`Government ID name on file: ${d.governmentIdName}`);
   drawParagraph(`Address: ${d.signerAddress}`);
   drawParagraph(`Email: ${d.signerEmail}`);
   drawParagraph(`Phone: ${d.signerPhone}`);
-  drawParagraph(`Emergency contact: ${d.emergencyContactName} (${d.emergencyContactPhone})`);
+  drawParagraph(
+    `Emergency contact: ${d.emergencyContactName} (${d.emergencyContactPhone})`,
+  );
   drawParagraph(`Date signed: ${d.signedDateStr}`);
-  drawParagraph(`Acting for Presenter: Ras Tafari Inc (by issuance of this contract's access code)`);
+  drawParagraph(
+    `Acting for Presenter: Ras Tafari Inc (by issuance of this contract's access code)`,
+  );
 
   return pdfDoc.save();
 }
@@ -266,7 +311,10 @@ Deno.serve(async (req) => {
     return new Response("ok", { headers: corsHeaders });
   }
   if (req.method !== "POST") {
-    return new Response("Method not allowed", { status: 405, headers: corsHeaders });
+    return new Response("Method not allowed", {
+      status: 405,
+      headers: corsHeaders,
+    });
   }
 
   const body = await req.json();
@@ -304,16 +352,36 @@ Deno.serve(async (req) => {
   if (!payeeEntity) missing.push("payeeEntity");
   if (!signatureTypedName) missing.push("signatureTypedName");
   if (missing.length) {
-    return new Response(JSON.stringify({ error: `Missing required fields: ${missing.join(", ")}` }), { status: 400, headers: corsHeaders });
+    return new Response(
+      JSON.stringify({
+        error: `Missing required fields: ${missing.join(", ")}`,
+      }),
+      { status: 400, headers: jsonHeaders },
+    );
   }
   if (agreedTerms !== true) {
-    return new Response(JSON.stringify({ error: "You must agree to the contract terms before submitting." }), { status: 400, headers: corsHeaders });
+    return new Response(
+      JSON.stringify({
+        error: "You must agree to the contract terms before submitting.",
+      }),
+      { status: 400, headers: jsonHeaders },
+    );
   }
   if (!PAYMENT_METHODS.includes(paymentMethod)) {
-    return new Response(JSON.stringify({ error: `paymentMethod must be one of: ${PAYMENT_METHODS.join(", ")}` }), { status: 400, headers: corsHeaders });
+    return new Response(
+      JSON.stringify({
+        error: `paymentMethod must be one of: ${PAYMENT_METHODS.join(", ")}`,
+      }),
+      { status: 400, headers: jsonHeaders },
+    );
   }
   if (!PAYEE_ENTITIES.includes(payeeEntity)) {
-    return new Response(JSON.stringify({ error: `payeeEntity must be one of: ${PAYEE_ENTITIES.join(", ")}` }), { status: 400, headers: corsHeaders });
+    return new Response(
+      JSON.stringify({
+        error: `payeeEntity must be one of: ${PAYEE_ENTITIES.join(", ")}`,
+      }),
+      { status: 400, headers: jsonHeaders },
+    );
   }
 
   const supabase = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
@@ -329,23 +397,47 @@ Deno.serve(async (req) => {
     .single();
 
   if (inviteError || !invite) {
-    return new Response(JSON.stringify({ error: "That access code isn't recognized." }), { status: 200, headers: corsHeaders });
+    return new Response(
+      JSON.stringify({ error: "That access code isn't recognized." }),
+      { status: 200, headers: jsonHeaders },
+    );
   }
   if (invite.status !== "pending") {
-    return new Response(JSON.stringify({ error: `This contract is ${invite.status === "signed" ? "already signed" : "no longer active"}.` }), { status: 200, headers: corsHeaders });
+    return new Response(
+      JSON.stringify({
+        error: `This contract is ${invite.status === "signed" ? "already signed" : "no longer active"}.`,
+      }),
+      { status: 200, headers: jsonHeaders },
+    );
   }
 
   if (invite.tax_form_required && taxFormAcknowledged !== true) {
-    return new Response(JSON.stringify({ error: "You must acknowledge that you'll provide a W-9 before submitting." }), { status: 200, headers: corsHeaders });
+    return new Response(
+      JSON.stringify({
+        error:
+          "You must acknowledge that you'll provide a W-9 before submitting.",
+      }),
+      { status: 200, headers: jsonHeaders },
+    );
   }
 
   // Re-check email verification -- never trust the client-side step order.
-  const { data: verified, error: verifyError } = await supabase.rpc("contract_email_is_verified", { check_email: normalizedEmail });
+  const { data: verified, error: verifyError } = await supabase.rpc(
+    "contract_email_is_verified",
+    { check_email: normalizedEmail },
+  );
   if (verifyError || !verified) {
-    return new Response(JSON.stringify({ error: "Please verify your email before submitting." }), { status: 200, headers: corsHeaders });
+    return new Response(
+      JSON.stringify({ error: "Please verify your email before submitting." }),
+      { status: 200, headers: jsonHeaders },
+    );
   }
 
-  const signedDateStr = new Date().toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" });
+  const signedDateStr = new Date().toLocaleDateString("en-US", {
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+  });
 
   const pdfData = {
     actName: invite.act_name,
@@ -390,7 +482,13 @@ Deno.serve(async (req) => {
     pdfBytes = await buildContractPdf(pdfData);
   } catch (e) {
     console.error("PDF generation failed:", e);
-    return new Response(JSON.stringify({ error: "Couldn't generate the contract PDF. Nothing was saved -- try again." }), { status: 500, headers: corsHeaders });
+    return new Response(
+      JSON.stringify({
+        error:
+          "Couldn't generate the contract PDF. Nothing was saved -- try again.",
+      }),
+      { status: 500, headers: jsonHeaders },
+    );
   }
 
   const { data: contractRow, error: insertError } = await supabase
@@ -438,7 +536,12 @@ Deno.serve(async (req) => {
 
   if (insertError || !contractRow) {
     console.error("talent_contracts insert failed:", insertError);
-    return new Response(JSON.stringify({ error: "Couldn't save your signed contract. Please try again." }), { status: 500, headers: corsHeaders });
+    return new Response(
+      JSON.stringify({
+        error: "Couldn't save your signed contract. Please try again.",
+      }),
+      { status: 500, headers: jsonHeaders },
+    );
   }
 
   const storagePath = `${contractRow.id}.pdf`;
@@ -452,7 +555,10 @@ Deno.serve(async (req) => {
     // the signature over a storage hiccup. Stephen can regenerate/re-upload
     // by hand if this ever actually happens.
   } else {
-    await supabase.from("talent_contracts").update({ pdf_storage_path: storagePath }).eq("id", contractRow.id);
+    await supabase
+      .from("talent_contracts")
+      .update({ pdf_storage_path: storagePath })
+      .eq("id", contractRow.id);
   }
 
   await supabase
@@ -463,7 +569,10 @@ Deno.serve(async (req) => {
   const pdfBase64 = uint8ToBase64(pdfBytes);
   const emailRes = await fetch("https://api.resend.com/emails", {
     method: "POST",
-    headers: { Authorization: `Bearer ${RESEND_API_KEY}`, "Content-Type": "application/json" },
+    headers: {
+      Authorization: `Bearer ${RESEND_API_KEY}`,
+      "Content-Type": "application/json",
+    },
     body: JSON.stringify({
       from: FROM,
       to: [NOTIFY_TO],
@@ -500,5 +609,8 @@ Deno.serve(async (req) => {
     // talent_contracts table + Storage if this ever actually happens.
   }
 
-  return new Response(JSON.stringify({ ok: true }), { status: 200, headers: corsHeaders });
+  return new Response(JSON.stringify({ ok: true }), {
+    status: 200,
+    headers: jsonHeaders,
+  });
 });

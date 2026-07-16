@@ -40,7 +40,14 @@ const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
 const CONTRACT_ADMIN_SECRET = Deno.env.get("CONTRACT_ADMIN_SECRET");
 
 const ROLES = ["Opening Act", "DJ", "Host", "Performer"];
-const PERFORMANCE_TYPES = ["DJ Set", "Host/MC", "Solo Vocalist", "Group Performance", "Live Band with Tracks", "Other"];
+const PERFORMANCE_TYPES = [
+  "DJ Set",
+  "Host/MC",
+  "Solo Vocalist",
+  "Group Performance",
+  "Live Band with Tracks",
+  "Other",
+];
 // Unambiguous uppercase-alnum (no 0/O/1/I) so it's easy to read back over
 // a phone call or text message.
 const CODE_ALPHABET = "23456789ABCDEFGHJKLMNPQRSTUVWXYZ";
@@ -70,7 +77,9 @@ const OPTIONAL_FIELDS = {
 async function sha256(text) {
   const data = new TextEncoder().encode(text);
   const hashBuffer = await crypto.subtle.digest("SHA-256", data);
-  return Array.from(new Uint8Array(hashBuffer)).map((b) => b.toString(16).padStart(2, "0")).join("");
+  return Array.from(new Uint8Array(hashBuffer))
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
 }
 
 function generateCode() {
@@ -86,26 +95,48 @@ Deno.serve(async (req) => {
     return new Response("Method not allowed", { status: 405 });
   }
   if (req.headers.get("x-admin-secret") !== CONTRACT_ADMIN_SECRET) {
-    return new Response(JSON.stringify({ error: "unauthorized" }), { status: 401 });
+    return new Response(JSON.stringify({ error: "unauthorized" }), {
+      status: 401,
+      headers: { "Content-Type": "application/json" },
+    });
   }
 
   const body = await req.json();
   const { actName, role, eventName } = body;
   if (!actName || !role || !eventName) {
-    return new Response(JSON.stringify({ error: "Missing actName, role, or eventName" }), { status: 400 });
+    return new Response(
+      JSON.stringify({ error: "Missing actName, role, or eventName" }),
+      { status: 400, headers: { "Content-Type": "application/json" } },
+    );
   }
   if (!ROLES.includes(role)) {
-    return new Response(JSON.stringify({ error: `role must be one of: ${ROLES.join(", ")}` }), { status: 400 });
+    return new Response(
+      JSON.stringify({ error: `role must be one of: ${ROLES.join(", ")}` }),
+      { status: 400, headers: { "Content-Type": "application/json" } },
+    );
   }
-  if (body.performanceType && !PERFORMANCE_TYPES.includes(body.performanceType)) {
-    return new Response(JSON.stringify({ error: `performanceType must be one of: ${PERFORMANCE_TYPES.join(", ")}` }), { status: 400 });
+  if (
+    body.performanceType &&
+    !PERFORMANCE_TYPES.includes(body.performanceType)
+  ) {
+    return new Response(
+      JSON.stringify({
+        error: `performanceType must be one of: ${PERFORMANCE_TYPES.join(", ")}`,
+      }),
+      { status: 400, headers: { "Content-Type": "application/json" } },
+    );
   }
 
   const supabase = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
   const code = generateCode();
   const codeHash = await sha256(code);
 
-  const insertRow = { access_code_hash: codeHash, act_name: actName, role, event_name: eventName };
+  const insertRow = {
+    access_code_hash: codeHash,
+    act_name: actName,
+    role,
+    event_name: eventName,
+  };
   for (const [jsonKey, column] of Object.entries(OPTIONAL_FIELDS)) {
     if (body[jsonKey] !== undefined && body[jsonKey] !== null) {
       insertRow[column] = body[jsonKey];
@@ -115,7 +146,10 @@ Deno.serve(async (req) => {
   const { error } = await supabase.from("contract_invites").insert(insertRow);
 
   if (error) {
-    return new Response(JSON.stringify({ error: error.message }), { status: 500 });
+    return new Response(JSON.stringify({ error: error.message }), {
+      status: 500,
+      headers: { "Content-Type": "application/json" },
+    });
   }
 
   return new Response(JSON.stringify({ ok: true, code, ...body }), {
