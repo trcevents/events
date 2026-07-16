@@ -104,7 +104,6 @@ Deno.serve(async (req) => {
       radiusClauseEnabled: invite.radius_clause_enabled,
       radiusMiles: invite.radius_miles,
       radiusDays: invite.radius_days,
-      guestListAllowance: invite.guest_list_allowance,
     }),
     { status: 200, headers: jsonHeaders },
   );

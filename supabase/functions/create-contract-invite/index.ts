@@ -24,12 +24,20 @@
 //       "merchRightsAllowed": true,
 //       "radiusClauseEnabled": false,
 //       "radiusMiles": null,
-//       "radiusDays": null,
-//       "guestListAllowance": 2
+//       "radiusDays": null
 //     }'
 //
 // Only actName, role, eventName are required -- everything else falls back
 // to a sensible default (see contract_invites' column defaults) if omitted.
+// compensationTerms specifically defaults by role, not to a generic
+// placeholder -- see DEFAULT_COMPENSATION_BY_ROLE below -- since pay
+// structure here is fixed policy, not something negotiated per deal:
+// DJs are guaranteed $200 regardless of ticket sales; opening acts have
+// no guarantee and are paid based on tickets they sell (see the
+// tailored ticket-request step after signing, submit-performer-ticket-
+// request). Pass compensationTerms explicitly to override for a
+// specific deal.
+//
 // The response's plaintext `code` is shown exactly once (same as a GitHub
 // PAT) -- text or email it to the performer yourself. Only its sha256 hash
 // is ever stored, same pattern as comp_verifications/contract_verifications.
@@ -53,6 +61,12 @@ const PERFORMANCE_TYPES = [
 const CODE_ALPHABET = "23456789ABCDEFGHJKLMNPQRSTUVWXYZ";
 const CODE_LENGTH = 10;
 
+const DEFAULT_COMPENSATION_BY_ROLE = {
+  DJ: "Talent is guaranteed $200.00 for this performance, regardless of ticket sales.",
+  "Opening Act":
+    "Talent is not guaranteed a fee for this performance. Compensation is based entirely on tickets Talent sells through TRC Events' ticketing process (see the ticket request step after signing).",
+};
+
 // Optional fields the caller may pass, mapped to their contract_invites
 // column name -- anything omitted just keeps the table's own default.
 const OPTIONAL_FIELDS = {
@@ -71,7 +85,6 @@ const OPTIONAL_FIELDS = {
   radiusClauseEnabled: "radius_clause_enabled",
   radiusMiles: "radius_miles",
   radiusDays: "radius_days",
-  guestListAllowance: "guest_list_allowance",
 };
 
 async function sha256(text) {
@@ -141,6 +154,9 @@ Deno.serve(async (req) => {
     if (body[jsonKey] !== undefined && body[jsonKey] !== null) {
       insertRow[column] = body[jsonKey];
     }
+  }
+  if (!insertRow.compensation_terms && DEFAULT_COMPENSATION_BY_ROLE[role]) {
+    insertRow.compensation_terms = DEFAULT_COMPENSATION_BY_ROLE[role];
   }
 
   const { error } = await supabase.from("contract_invites").insert(insertRow);

@@ -140,12 +140,11 @@ function buildContractSections(d) {
         "Event, including compliance with the venue's policies on alcohol, controlled substances, and safety.",
     },
     {
-      heading: "6. Additional People & Guests",
+      heading: "6. Additional People",
       body:
         `Talent has indicated ${d.additionalPeopleCount} additional person(s) accompanying them` +
-        `${d.additionalPeopleNotes ? ` (${d.additionalPeopleNotes})` : ""}. Presenter grants Talent a guest list ` +
-        `allowance of ${d.guestListAllowance} guest(s) for this Event` +
-        `${d.guestListNames ? `: ${d.guestListNames}` : "; names to be provided to Presenter in advance"}.`,
+        `${d.additionalPeopleNotes ? ` (${d.additionalPeopleNotes})` : ""}. Any guest or ticket access for ` +
+        `Talent or their party is arranged through TRC Events' ticketing process, not through this Agreement.`,
     },
     {
       heading: "7. No-Show / Late Arrival",
@@ -334,7 +333,6 @@ Deno.serve(async (req) => {
     taxFormAcknowledged,
     additionalPeopleCount,
     additionalPeopleNotes,
-    guestListNames,
     signatureTypedName,
     agreedTerms,
   } = body;
@@ -458,7 +456,6 @@ Deno.serve(async (req) => {
     radiusClauseEnabled: invite.radius_clause_enabled,
     radiusMiles: invite.radius_miles,
     radiusDays: invite.radius_days,
-    guestListAllowance: invite.guest_list_allowance,
     signerFullLegalName: signerFullLegalName.trim(),
     signerBusinessName: signerBusinessName?.trim() || null,
     signerAddress: signerAddress.trim(),
@@ -472,7 +469,6 @@ Deno.serve(async (req) => {
     payeeDetails: payeeDetails?.trim() || null,
     additionalPeopleCount: Number(additionalPeopleCount) || 0,
     additionalPeopleNotes: additionalPeopleNotes?.trim() || null,
-    guestListNames: guestListNames?.trim() || null,
     signatureTypedName: signatureTypedName.trim(),
     signedDateStr,
   };
@@ -513,7 +509,6 @@ Deno.serve(async (req) => {
       radius_clause_enabled: invite.radius_clause_enabled,
       radius_miles: invite.radius_miles,
       radius_days: invite.radius_days,
-      guest_list_allowance: invite.guest_list_allowance,
       signer_full_legal_name: pdfData.signerFullLegalName,
       signer_business_name: pdfData.signerBusinessName,
       signer_address: pdfData.signerAddress,
@@ -528,7 +523,6 @@ Deno.serve(async (req) => {
       tax_form_acknowledged: taxFormAcknowledged === true,
       additional_people_count: pdfData.additionalPeopleCount,
       additional_people_notes: pdfData.additionalPeopleNotes,
-      guest_list_names: pdfData.guestListNames,
       signature_typed_name: pdfData.signatureTypedName,
     })
     .select("id")
@@ -588,7 +582,6 @@ Deno.serve(async (req) => {
         <p><strong>Payment:</strong> ${pdfData.paymentMethod} to ${pdfData.payeeEntity}${pdfData.payeeDetails ? ` (${pdfData.payeeDetails})` : ""}</p>
         <p><strong>W-9 acknowledged:</strong> ${taxFormAcknowledged === true ? "Yes" : "No (not required for this engagement)"}</p>
         <p><strong>Additional people:</strong> ${pdfData.additionalPeopleCount}${pdfData.additionalPeopleNotes ? ` (${pdfData.additionalPeopleNotes})` : ""}</p>
-        <p><strong>Guest list:</strong> ${pdfData.guestListNames || "none provided"}</p>
         <p><strong>Signed:</strong> ${signedDateStr}</p>
         <p>PDF attached.</p>
       `,
