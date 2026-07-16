@@ -10,9 +10,9 @@
 // comp_requests_notify trigger as the public form, so Stephen gets
 // notified exactly the same way -- no changes needed there.
 //
-// Only meaningful for events that actually have a comp_requests-backed
-// ticket flow today (Charly Black). If a future event needs this too,
-// comp_requests will need an event reference added -- it doesn't have one.
+// event_name (added in migration 0012) comes from the invite, not the
+// client -- so a future event's performer contracts land here correctly
+// distinguished from Charly Black's, without touching this function again.
 import { createClient } from "npm:@supabase/supabase-js@2";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
@@ -96,7 +96,7 @@ Deno.serve(async (req) => {
 
   const { data: invite, error: inviteError } = await supabase
     .from("contract_invites")
-    .select("id, act_name, status")
+    .select("id, act_name, event_name, status")
     .eq("access_code_hash", codeHash)
     .single();
 
@@ -137,6 +137,7 @@ Deno.serve(async (req) => {
     full_name: contract.signer_full_legal_name,
     email: contract.signer_email,
     phone: contract.signer_phone,
+    event_name: invite.event_name,
     tickets_requested: freeCount + sellCount,
     wants_free: !!wantsFree,
     free_tickets_requested: freeCount,
