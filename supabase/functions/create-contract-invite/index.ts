@@ -19,7 +19,7 @@
 //       "setTime": "9:20 PM",
 //       "setLengthMinutes": 20,
 //       "compensationTerms": "$150 flat fee, paid day-of by check",
-//       "taxFormRequired": true,
+//       "taxFormRequired": false,
 //       "cancellationNoticeDays": 14,
 //       "merchRightsAllowed": true,
 //       "radiusClauseEnabled": false,

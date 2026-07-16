@@ -41,7 +41,10 @@ create table if not exists contract_invites (
   -- and timing here, e.g. "$300 total: $100 deposit via Zelle upon
   -- signing, $200 balance in cash day-of."
   compensation_terms text not null default 'To be provided separately in writing by Presenter.',
-  tax_form_required boolean not null default true,
+  -- Defaults off for now (2026-07-15, Stephen's call) -- flip to true
+  -- per-invite (create-contract-invite's taxFormRequired param) once W-9
+  -- collection is actually being handled.
+  tax_form_required boolean not null default false,
   cancellation_notice_days integer not null default 14,
   merch_rights_allowed boolean not null default true,
   radius_clause_enabled boolean not null default false,
