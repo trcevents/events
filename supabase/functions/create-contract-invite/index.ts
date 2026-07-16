@@ -62,7 +62,7 @@ const CODE_ALPHABET = "23456789ABCDEFGHJKLMNPQRSTUVWXYZ";
 const CODE_LENGTH = 10;
 
 const DEFAULT_COMPENSATION_BY_ROLE = {
-  DJ: "Talent is guaranteed $200.00 for this performance, regardless of ticket sales.",
+  DJ: "Talent is guaranteed $200.00 for this performance, regardless of ticket sales, to be paid no later than one (1) hour after the show concludes.",
   "Opening Act":
     "Talent is not guaranteed a fee for this performance. Compensation is based entirely on tickets Talent sells through TRC Events' ticketing process (see the ticket request step after signing).",
 };
