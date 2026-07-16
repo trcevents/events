@@ -115,7 +115,7 @@ function buildContractSections(d) {
     {
       heading: "2. Compensation & Payment",
       body:
-        `${d.compensationTerms} Payment method: ${d.paymentMethod}, payable to: ${d.payeeEntity}` +
+        `${d.compensationTerms} Talent's accepted payment method(s): ${d.paymentMethods.join(", ")}, payable to: ${d.payeeEntity}` +
         `${d.payeeDetails ? ` (${d.payeeDetails})` : ""}.`,
     },
     {
@@ -327,7 +327,7 @@ Deno.serve(async (req) => {
     emergencyContactName,
     emergencyContactPhone,
     governmentIdName,
-    paymentMethod,
+    paymentMethods,
     payeeEntity,
     payeeDetails,
     taxFormAcknowledged,
@@ -346,7 +346,8 @@ Deno.serve(async (req) => {
   if (!emergencyContactName) missing.push("emergencyContactName");
   if (!emergencyContactPhone) missing.push("emergencyContactPhone");
   if (!governmentIdName) missing.push("governmentIdName");
-  if (!paymentMethod) missing.push("paymentMethod");
+  if (!Array.isArray(paymentMethods) || paymentMethods.length === 0)
+    missing.push("paymentMethods");
   if (!payeeEntity) missing.push("payeeEntity");
   if (!signatureTypedName) missing.push("signatureTypedName");
   if (missing.length) {
@@ -365,10 +366,10 @@ Deno.serve(async (req) => {
       { status: 400, headers: jsonHeaders },
     );
   }
-  if (!PAYMENT_METHODS.includes(paymentMethod)) {
+  if (paymentMethods.some((m) => !PAYMENT_METHODS.includes(m))) {
     return new Response(
       JSON.stringify({
-        error: `paymentMethod must be one of: ${PAYMENT_METHODS.join(", ")}`,
+        error: `paymentMethods must each be one of: ${PAYMENT_METHODS.join(", ")}`,
       }),
       { status: 400, headers: jsonHeaders },
     );
@@ -464,7 +465,7 @@ Deno.serve(async (req) => {
     emergencyContactName: emergencyContactName.trim(),
     emergencyContactPhone: emergencyContactPhone.trim(),
     governmentIdName: governmentIdName.trim(),
-    paymentMethod,
+    paymentMethods,
     payeeEntity,
     payeeDetails: payeeDetails?.trim() || null,
     additionalPeopleCount: Number(additionalPeopleCount) || 0,
@@ -517,7 +518,7 @@ Deno.serve(async (req) => {
       emergency_contact_name: pdfData.emergencyContactName,
       emergency_contact_phone: pdfData.emergencyContactPhone,
       government_id_name: pdfData.governmentIdName,
-      payment_method: pdfData.paymentMethod,
+      payment_methods: pdfData.paymentMethods,
       payee_entity: pdfData.payeeEntity,
       payee_details: pdfData.payeeDetails,
       tax_form_acknowledged: taxFormAcknowledged === true,
@@ -579,7 +580,7 @@ Deno.serve(async (req) => {
         <p><strong>Address:</strong> ${pdfData.signerAddress}</p>
         <p><strong>Emergency contact:</strong> ${pdfData.emergencyContactName} (${pdfData.emergencyContactPhone})</p>
         <p><strong>Compensation terms:</strong> ${pdfData.compensationTerms}</p>
-        <p><strong>Payment:</strong> ${pdfData.paymentMethod} to ${pdfData.payeeEntity}${pdfData.payeeDetails ? ` (${pdfData.payeeDetails})` : ""}</p>
+        <p><strong>Payment:</strong> ${pdfData.paymentMethods.join(", ")} to ${pdfData.payeeEntity}${pdfData.payeeDetails ? ` (${pdfData.payeeDetails})` : ""}</p>
         <p><strong>W-9 acknowledged:</strong> ${taxFormAcknowledged === true ? "Yes" : "No (not required for this engagement)"}</p>
         <p><strong>Additional people:</strong> ${pdfData.additionalPeopleCount}${pdfData.additionalPeopleNotes ? ` (${pdfData.additionalPeopleNotes})` : ""}</p>
         <p><strong>Signed:</strong> ${signedDateStr}</p>
