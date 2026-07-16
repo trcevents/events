@@ -65,6 +65,15 @@ Deno.serve(async (req) => {
     openingAct,
   } = body;
 
+  if (!Array.isArray(socialMedia) || socialMedia.length < 2) {
+    return new Response(
+      JSON.stringify({ error: "Add at least 2 social media handles." }),
+      {
+        status: 400,
+        headers: jsonHeaders,
+      },
+    );
+  }
   if (!accessCode) {
     return new Response(JSON.stringify({ error: "Missing access code." }), {
       status: 400,
