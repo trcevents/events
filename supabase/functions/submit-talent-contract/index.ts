@@ -602,6 +602,40 @@ Deno.serve(async (req) => {
     // talent_contracts table + Storage if this ever actually happens.
   }
 
+  // Talent gets their own copy too -- both parties to a signed agreement
+  // should have it, not just Presenter. Same attachment, performer-facing
+  // copy. A failure here doesn't block the response either, same reasoning
+  // as above -- the contract is already signed and saved regardless.
+  const signerEmailRes = await fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${RESEND_API_KEY}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      from: FROM,
+      to: [pdfData.signerEmail],
+      subject: `Your signed contract — ${pdfData.eventName}`,
+      html: `
+        <h2>You're all set, ${pdfData.signatureTypedName}</h2>
+        <p>Attached is your copy of the signed Independent Performance Agreement between you and Ras Tafari Inc, for ${pdfData.actName} (${pdfData.role}) at <strong>${pdfData.eventName}</strong>.</p>
+        <p>Keep this for your records. TRC Events will follow up separately with any remaining event logistics.</p>
+        <p style="margin-top:24px;color:#888;font-size:0.85rem;">Signed ${signedDateStr}.</p>
+      `,
+      attachments: [
+        {
+          filename: `${pdfData.actName.replace(/[^a-z0-9]+/gi, "-")}-contract.pdf`,
+          content: pdfBase64,
+        },
+      ],
+    }),
+  });
+
+  if (!signerEmailRes.ok) {
+    const text = await signerEmailRes.text();
+    console.error("Resend send to signer failed:", signerEmailRes.status, text);
+  }
+
   return new Response(JSON.stringify({ ok: true }), {
     status: 200,
     headers: jsonHeaders,
