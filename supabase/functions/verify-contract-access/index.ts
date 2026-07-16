@@ -1,10 +1,13 @@
-// Called from the contract page's first step, when the performer types in
-// the access code Stephen gave them. Read-only -- just confirms the code
-// is valid and unsigned, and returns the act/role/event so the page can
-// show "You're signing as: DJ Example (DJ) for Charly Black — Good Times"
-// before asking for anything else. The real re-check happens again inside
-// submit-talent-contract -- this step existing separately is purely UX
-// (so a wrong code fails fast, before the email-verification step).
+// Called from both the contract page and the tech-rider page when the
+// performer types in the access code Stephen gave them. Read-only -- just
+// confirms the code is valid (not revoked) and returns the full deal
+// summary (act/role/venue/date/fee/etc.) plus its status, so each caller
+// can decide what "signed" should mean for it: the contract page treats an
+// already-signed invite as an error (no re-signing), but the tech-rider
+// page allows submitting either before or after the contract is signed.
+// The real re-check happens again inside submit-talent-contract /
+// submit-tech-rider -- this step existing separately is purely UX (so a
+// wrong code fails fast, before the email-verification step).
 import { createClient } from "npm:@supabase/supabase-js@2";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
@@ -40,15 +43,12 @@ Deno.serve(async (req) => {
 
   const { data: invite, error } = await supabase
     .from("contract_invites")
-    .select("id, act_name, role, event_name, compensation_terms, status")
+    .select("*")
     .eq("access_code_hash", codeHash)
     .single();
 
   if (error || !invite) {
     return new Response(JSON.stringify({ valid: false, error: "That access code isn't recognized." }), { status: 200, headers: corsHeaders });
-  }
-  if (invite.status === "signed") {
-    return new Response(JSON.stringify({ valid: false, error: "This contract has already been signed." }), { status: 200, headers: corsHeaders });
   }
   if (invite.status === "revoked") {
     return new Response(JSON.stringify({ valid: false, error: "This access code is no longer active." }), { status: 200, headers: corsHeaders });
@@ -57,10 +57,27 @@ Deno.serve(async (req) => {
   return new Response(
     JSON.stringify({
       valid: true,
+      inviteId: invite.id,
+      status: invite.status,
       actName: invite.act_name,
       role: invite.role,
+      performanceType: invite.performance_type,
       eventName: invite.event_name,
+      venueName: invite.venue_name,
+      venueAddress: invite.venue_address,
+      performanceDate: invite.performance_date,
+      arrivalTime: invite.arrival_time,
+      soundcheckTime: invite.soundcheck_time,
+      setTime: invite.set_time,
+      setLengthMinutes: invite.set_length_minutes,
       compensationTerms: invite.compensation_terms,
+      taxFormRequired: invite.tax_form_required,
+      cancellationNoticeDays: invite.cancellation_notice_days,
+      merchRightsAllowed: invite.merch_rights_allowed,
+      radiusClauseEnabled: invite.radius_clause_enabled,
+      radiusMiles: invite.radius_miles,
+      radiusDays: invite.radius_days,
+      guestListAllowance: invite.guest_list_allowance,
     }),
     { status: 200, headers: corsHeaders },
   );
