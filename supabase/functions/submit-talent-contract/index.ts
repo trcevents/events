@@ -150,8 +150,10 @@ function buildContractSections(d) {
       heading: "7. No-Show / Late Arrival",
       body:
         "If Talent fails to arrive within thirty (30) minutes of the confirmed arrival/call time without prior " +
-        "notice to Presenter, Presenter may treat this as a no-show, cancel Talent's engagement for the Event, " +
-        "and Talent forfeits any deposit or compensation that would otherwise be due for the Event.",
+        "notice to Presenter, Presenter may treat this as a no-show and cancel Talent's engagement for the " +
+        "Event. In that case, no deposit and no guaranteed compensation is owed to Talent for the Event. Talent " +
+        "keeps any proceeds already earned from tickets Talent personally sold through TRC Events' ticketing " +
+        "process prior to the no-show.",
     },
     {
       heading: "8. Cancellation",
