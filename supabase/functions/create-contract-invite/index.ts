@@ -24,8 +24,16 @@
 //       "merchRightsAllowed": true,
 //       "radiusClauseEnabled": false,
 //       "radiusMiles": null,
-//       "radiusDays": null
+//       "radiusDays": null,
+//       "actSlug": "nego-heights",
+//       "knownEmail": "onbudgethomesolutions@gmail.com"
 //     }'
+//
+// actSlug (optional) is a public-safe identifier for the "click your
+// photo to get started" gallery page (see request-invite-access) --
+// only needed if this invite should be reachable from that page.
+// knownEmail (optional) lets the gallery page skip asking for an email
+// at all -- if set, clicking the photo just emails the code there.
 //
 // Only actName, role, eventName are required -- everything else falls back
 // to a sensible default (see contract_invites' column defaults) if omitted.
@@ -85,6 +93,8 @@ const OPTIONAL_FIELDS = {
   radiusClauseEnabled: "radius_clause_enabled",
   radiusMiles: "radius_miles",
   radiusDays: "radius_days",
+  actSlug: "act_slug",
+  knownEmail: "known_email",
 };
 
 async function sha256(text) {
@@ -146,6 +156,7 @@ Deno.serve(async (req) => {
 
   const insertRow = {
     access_code_hash: codeHash,
+    access_code_plain: code,
     act_name: actName,
     role,
     event_name: eventName,
