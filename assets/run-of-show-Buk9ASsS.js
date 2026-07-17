@@ -1,0 +1,1 @@
+import{a as e}from"./index-Ba_Ueuz6.js";var t=e;export{t as component};
