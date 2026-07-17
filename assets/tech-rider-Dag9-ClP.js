@@ -1,0 +1,1 @@
+import{s as e}from"./index-C-ILBXtl.js";var t=e;export{t as component};
