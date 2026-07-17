@@ -1,8 +1,14 @@
-// Final step of the contract flow. Re-validates the access code and email
-// verification itself (never trusts that the earlier steps happened -- this
-// is the only function that actually writes a signed contract), generates
-// a PDF, stores it in the private talent-contracts bucket, flips the
-// invite to 'signed', and emails the PDF to stephen@selassiefest.com.
+// Final step of the contract flow. Re-validates the access code itself
+// (never trusts that earlier steps happened -- this is the only function
+// that actually writes a signed contract), generates a PDF, stores it in
+// the private talent-contracts bucket, flips the invite to 'signed', and
+// emails the PDF to stephen@selassiefest.com and to the signer.
+//
+// No separate email-OTP verification step (removed 2026-07-17, per
+// Stephen): request-invite-access (/get-started) already only ever emails
+// an access code to a real address, so producing that code here already
+// proves email delivery happened once -- a second verification round on
+// top of that was redundant friction, not additional security.
 //
 // DRAFT CONTRACT LANGUAGE: the clauses in buildContractSections() below are
 // a standard-form starting point, not reviewed by a lawyer. Don't hand out
@@ -422,17 +428,11 @@ Deno.serve(async (req) => {
     );
   }
 
-  // Re-check email verification -- never trust the client-side step order.
-  const { data: verified, error: verifyError } = await supabase.rpc(
-    "contract_email_is_verified",
-    { check_email: normalizedEmail },
-  );
-  if (verifyError || !verified) {
-    return new Response(
-      JSON.stringify({ error: "Please verify your email before submitting." }),
-      { status: 200, headers: jsonHeaders },
-    );
-  }
+  // No separate email-OTP check here (removed 2026-07-17, see file header):
+  // the only way to reach this function with a valid accessCode is to have
+  // already received it by email via /get-started or Stephen directly, so
+  // that already establishes email delivery once -- a second verification
+  // round here was redundant friction, not additional security.
 
   const signedDateStr = new Date().toLocaleDateString("en-US", {
     year: "numeric",
