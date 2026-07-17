@@ -1,0 +1,1 @@
+import{i as e}from"./index-B2d-p-Xz.js";var t=e;export{t as component};
