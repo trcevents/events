@@ -25,7 +25,7 @@
 //       "radiusClauseEnabled": false,
 //       "radiusMiles": null,
 //       "radiusDays": null,
-//       "actSlug": "nego-heights",
+//       "actSlug": "nego-hights",
 //       "knownEmail": "onbudgethomesolutions@gmail.com"
 //     }'
 //
