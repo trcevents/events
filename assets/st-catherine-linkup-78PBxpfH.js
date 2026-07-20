@@ -1,0 +1,1 @@
+import{p as e}from"./index-C_gtrKQp.js";var t=e;export{t as component};
