@@ -1,0 +1,1 @@
+import{l as e}from"./index-CT6PgIK2.js";var t=e;export{t as component};
