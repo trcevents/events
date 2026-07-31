@@ -1,0 +1,1 @@
+import{r as e,t}from"./react-DKFUAf5x.js";var n=e(t()),r=`chicago`;function i(){return(0,n.useEffect)(()=>{window.location.replace(`/sing-ova-sundays/${r}`)},[]),null}export{i as component};
