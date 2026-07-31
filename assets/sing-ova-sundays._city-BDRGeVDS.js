@@ -1,0 +1,1 @@
+import{n as e}from"./createLucideIcon--bN5BzKE.js";import{n as t,t as n}from"./index-tgX79aNk.js";var r=e();function i(){let{city:e}=n.useParams();return(0,r.jsx)(t,{citySlug:e})}export{i as component};
