@@ -1,0 +1,1 @@
+import{v as e}from"./index-DBtybv3x.js";var t=e;export{t as component};

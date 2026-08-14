@@ -11,8 +11,8 @@
     <priority>1.0</priority>
   </url>
   <url>
-    <loc>https://trcevent.com/jamaica64</loc>
-    <changefreq>daily</changefreq>
+    <loc>https://trcevent.com/dancehall-101</loc>
+    <changefreq>weekly</changefreq>
     <priority>1.0</priority>
   </url>
   <url>
@@ -23,6 +23,11 @@
   <url>
     <loc>https://trcevent.com/dancehall-fridays</loc>
     <changefreq>daily</changefreq>
+    <priority>1.0</priority>
+  </url>
+  <url>
+    <loc>https://trcevent.com/dinner-in-jamaica</loc>
+    <changefreq>weekly</changefreq>
     <priority>1.0</priority>
   </url>
 </urlset>
