@@ -1,0 +1,1 @@
+import{S as e}from"./index-DeXj5HDP.js";var t=e;export{t as component};
