@@ -1,0 +1,1 @@
+import{x as e}from"./index--VeyPIqX.js";var t=e;export{t as component};
