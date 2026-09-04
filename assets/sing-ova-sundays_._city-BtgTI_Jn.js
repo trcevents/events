@@ -1,0 +1,1 @@
+import{t as e}from"./jsx-runtime-C0KBcl3q.js";import{f as t,p as n}from"./index-CjVDnsd_.js";var r=e();function i(){let{city:e}=t.useParams();return(0,r.jsx)(n,{citySlug:e})}export{i as component};

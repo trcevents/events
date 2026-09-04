@@ -1,0 +1,1 @@
+import{t as e}from"./jsx-runtime-C0KBcl3q.js";import{d as t,u as n}from"./index-CjVDnsd_.js";var r=e();function i(){let{slug:e}=n.useParams();return(0,r.jsx)(t,{slug:e})}export{i as component};
