@@ -1,0 +1,1 @@
+import{j as e}from"./index-C45g-nUF.js";var t=e;export{t as component};
