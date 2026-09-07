@@ -1,0 +1,1 @@
+import{y as e}from"./index-CJSk349u.js";var t=e;export{t as component};
