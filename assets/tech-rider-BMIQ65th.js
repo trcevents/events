@@ -1,0 +1,1 @@
+import{R as e}from"./index-C8Dilca7.js";var t=e;export{t as component};
