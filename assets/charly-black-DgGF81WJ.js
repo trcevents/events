@@ -1,0 +1,1 @@
+import{v as e}from"./index-_W2dEF6d.js";var t=e;export{t as component};

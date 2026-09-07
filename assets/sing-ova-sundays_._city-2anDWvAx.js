@@ -1,0 +1,1 @@
+import{t as e}from"./jsx-runtime-C0KBcl3q.js";import{_ as t,g as n}from"./index-_W2dEF6d.js";var r=e();function i(){let{city:e}=n.useParams();return(0,r.jsx)(t,{citySlug:e})}export{i as component};
