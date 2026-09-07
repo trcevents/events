@@ -1,0 +1,1 @@
+import{C as e}from"./index-RtyG_69m.js";var t=e;export{t as component};
