@@ -1,0 +1,1 @@
+import{t as e}from"./jsx-runtime-C0KBcl3q.js";import{g as t,h as n}from"./index-HxOGrifB.js";var r=e();function i(){let{slug:e}=n.useParams();return(0,r.jsx)(t,{slug:e})}export{i as component};
